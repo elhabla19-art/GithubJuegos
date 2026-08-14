@@ -48,6 +48,10 @@
             <h2>Unirse a Sala</h2>
             <p>Pide el codigo al creador de la sala</p>
             <div class="input-group">
+                <label>Tu Nombre:</label>
+                <input type="text" id="joinPlayerName" placeholder="Ej. Leo" maxlength="10" oninput="document.getElementById('playerName').value=this.value">
+            </div>
+            <div class="input-group">
                 <label>Codigo de la Sala (4 letras/numeros):</label>
                 <input type="text" id="roomCodeInput" placeholder="ABCD" maxlength="4" style="text-transform:uppercase;">
             </div>
@@ -125,7 +129,7 @@
     <div id="resetGameModal" class="modal-overlay">
         <div class="modal-box">
             <h3>Reiniciar partida</h3>
-            <p>Esto borrara los puntajes de TODOS los jugadores y volvera a la sala de espera para reordenar turnos.</p>
+            <p>Esto borrara los puntajes de TODOS los jugadores y volvera a la sala de espera.</p>
             <div class="modal-buttons row-btns">
                 <button class="modal-btn btn-outline" onclick="closeResetGameModal()">Cancelar</button>
                 <button class="modal-btn btn-danger" onclick="confirmGameReset()">Reiniciar</button>
@@ -156,19 +160,15 @@
         <button class="modal-btn btn-primary" onclick="claimHost()">Ser anfitrión</button>
     </div>
 
-    <!-- SALA DE ESPERA / CONFIGURAR ORDEN -->
-    <div id="preGamePanel" class="pre-game-panel" style="display:none;">
-        <h3>Jugadores en la sala</h3>
-        <p id="preGameHint" class="pre-game-hint">Esperando a que el anfitrion inicie la partida...</p>
-        <div id="orderList" class="order-list"></div>
-        <button id="startGameBtn" class="modal-btn btn-primary" style="display:none; margin-top:10px;" onclick="startGame()">Iniciar Partida</button>
-    </div>
+    <!-- Nota: ya no hay una pantalla de espera separada. El tablero se
+         muestra directamente al entrar a la sala; las acciones quedan
+         bloqueadas hasta que el anfitrion presione "Iniciar Partida". -->
+    <div id="preGamePanel" style="display:none;"></div>
 
     <!-- PANTALLA DE JUEGO -->
     <div id="gameArea" class="app-container" style="display:none;">
 
         <div id="turnBanner" class="turn-banner">Turno de: --</div>
-        <button id="resetGameBtn" class="modal-btn btn-outline" style="display:none; width:100%;" onclick="requestGameReset()">Reiniciar Partida (Todos)</button>
 
         <div class="board-container">
             <!-- FILA DE DADOS -->
@@ -199,6 +199,12 @@
                 <div id="playersList"></div>
             </div>
         </div>
+    </div>
+
+    <!-- CONTROLES DE ANFITRION (Iniciar / Reiniciar) -->
+    <div id="hostControlsBar" class="host-controls-bar">
+        <button id="startGameBtn" class="modal-btn btn-success" style="display:none;" onclick="startGame()">Iniciar Partida</button>
+        <button id="resetGameBtn" class="modal-btn btn-danger" style="display:none;" onclick="requestGameReset()">Reiniciar Partida</button>
     </div>
 
     <!-- LOG COMPARTIDO -->
