@@ -277,11 +277,16 @@ function renderTurnActions() {
 }
 function renderTurnBanner() {
     const banner = document.getElementById('turnBanner');
-    const resetBtn = document.getElementById('resetGameBtn');
-    if (resetBtn) resetBtn.style.display = (isRoomCreator && gameStarted && currentRoom) ? 'block' : 'none';
+    renderHostControls();
     updateHostWarning();
     if (!banner) return;
-    if (!gameStarted || turnOrder.length === 0) { banner.textContent = ''; banner.classList.remove('my-turn'); return; }
+    if (!gameStarted || turnOrder.length === 0) {
+        banner.classList.remove('my-turn');
+        banner.textContent = isRoomCreator
+            ? 'Presiona "Iniciar Partida" para comenzar'
+            : 'Esperando a que el anfitrion inicie la partida...';
+        return;
+    }
     const currentId = turnOrder[currentTurnIndex];
     const currentName = (playersData[currentId] && playersData[currentId].name) || (currentId === myId ? myName : '??');
     if (currentId === myId) { banner.textContent = 'Tu turno — lanza los dados y anota'; banner.classList.add('my-turn'); }
@@ -418,49 +423,32 @@ function openViewPlayer(id) {
 function closeViewPlayer() { document.getElementById('viewPlayerModal').style.display = 'none'; }
 
 // ===== SALA DE ESPERA / ORDEN DE TURNOS =====
+function renderHostControls() {
+    const startBtn = document.getElementById('startGameBtn');
+    const resetBtn = document.getElementById('resetGameBtn');
+    if (startBtn) startBtn.style.display = (isRoomCreator && currentRoom && !gameStarted) ? 'block' : 'none';
+    if (resetBtn) resetBtn.style.display = (isRoomCreator && currentRoom && gameStarted) ? 'block' : 'none';
+}
+
 function renderPreGame() {
     const panel = document.getElementById('preGamePanel');
     const gameArea = document.getElementById('gameArea');
+    renderHostControls();
     if (!panel || !gameArea) return;
     updateHostWarning();
 
-    if (gameStarted) { panel.style.display = 'none'; gameArea.style.display = 'flex'; return; }
-    panel.style.display = 'block'; gameArea.style.display = 'none';
+    // Ya no hay una pantalla de espera separada: el tablero se muestra
+    // siempre que estamos en una sala. Las acciones quedan bloqueadas
+    // (ver isMyTurn/gameStarted) hasta que el anfitrion presione
+    // "Iniciar Partida" (la primera vez, o de nuevo tras un Reiniciar).
+    panel.style.display = 'none';
+    gameArea.style.display = 'flex';
 
+    // El orden de turnos se sigue calculando en segundo plano, segun el
+    // orden de llegada a la sala, para cuando el anfitrion inicie la partida.
     const currentIds = Object.keys(playersData);
     currentIds.forEach(id => { if (!pendingOrder.includes(id)) pendingOrder.push(id); });
     pendingOrder = pendingOrder.filter(id => currentIds.includes(id));
-
-    const list = document.getElementById('orderList');
-    list.innerHTML = '';
-    pendingOrder.forEach((id, idx) => {
-        const p = playersData[id];
-        if (!p) return;
-        const hex = PLAYER_COLORS[idx % PLAYER_COLORS.length].hex;
-        const row = document.createElement('div');
-        row.className = 'order-row';
-        row.style.borderLeftColor = hex;
-        row.innerHTML = `<span class="order-color-dot" style="background:${hex}"></span>
-            <span class="order-name">${idx + 1}. ${p.name}${id === myId ? ' (Tu)' : ''}</span>`;
-        if (isRoomCreator) {
-            const arrows = document.createElement('div');
-            arrows.className = 'order-arrows';
-            const up = document.createElement('button');
-            up.className = 'order-arrow-btn'; up.textContent = '▲'; up.disabled = idx === 0;
-            up.addEventListener('click', () => moveOrder(idx, -1));
-            const down = document.createElement('button');
-            down.className = 'order-arrow-btn'; down.textContent = '▼'; down.disabled = idx === pendingOrder.length - 1;
-            down.addEventListener('click', () => moveOrder(idx, 1));
-            arrows.appendChild(up); arrows.appendChild(down);
-            row.appendChild(arrows);
-        }
-        list.appendChild(row);
-    });
-
-    document.getElementById('preGameHint').textContent = isRoomCreator
-        ? 'Ordena a los jugadores (▲▼) y presiona Iniciar cuando esten todos.'
-        : 'Esperando a que el anfitrion inicie la partida...';
-    document.getElementById('startGameBtn').style.display = isRoomCreator ? 'block' : 'none';
 }
 
 // ===== AVISO GENERAL (reemplaza alert() nativo) =====
