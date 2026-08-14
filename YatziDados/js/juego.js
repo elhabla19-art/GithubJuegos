@@ -318,12 +318,8 @@ function checkGameFinished() {
 }
 
 // ===== SALA DE ESPERA / ORDEN DE TURNOS =====
-function moveOrder(idx, dir) {
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= pendingOrder.length) return;
-    [pendingOrder[idx], pendingOrder[newIdx]] = [pendingOrder[newIdx], pendingOrder[idx]];
-    renderPreGame();
-}
+// El orden de turnos se asigna automaticamente segun el orden de llegada
+// a la sala (ver renderPreGame en ui.js). Ya no es reordenable manualmente.
 
 function startGame() {
     if (!isRoomCreator || pendingOrder.length === 0) return;
@@ -447,6 +443,8 @@ function playSolo() {
 }
 function showJoinModal() {
     document.getElementById('lobbyModal').style.display = 'none';
+    const joinNameInput = document.getElementById('joinPlayerName');
+    if (joinNameInput) joinNameInput.value = document.getElementById('playerName').value;
     document.getElementById('joinModal').style.display = 'flex';
 }
 function backToLobby() {
