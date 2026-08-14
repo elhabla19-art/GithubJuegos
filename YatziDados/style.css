@@ -131,12 +131,13 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 }
 .order-row .order-color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
 .order-row .order-name { flex: 1; text-align: left; font-weight: bold; }
-.order-row .order-arrows { display: flex; gap: 4px; }
-.order-arrow-btn {
-    width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border-color);
-    background: #1a1a1a; color: var(--text-main); font-size: 0.9rem; cursor: pointer;
+
+/* --- CONTROLES DE ANFITRION (Iniciar / Reiniciar) --- */
+.host-controls-bar {
+    display: flex; gap: 10px; width: 100%; max-width: 600px;
+    margin: 4px auto 0;
 }
-.order-arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-success { background: var(--sheet-green); color: #10230f; }
 
 /* --- JUEGO --- */
 .app-container { display: flex; flex-direction: column; width: 100%; max-width: 600px; gap: 12px; align-items: center; }
