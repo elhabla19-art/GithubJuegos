@@ -137,6 +137,18 @@
         </div>
     </div>
 
+    <!-- QUITAR JUGADOR DE LA SALA (SOLO ANFITRION, ANTES DE INICIAR) -->
+    <div id="kickPlayerModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Quitar jugador</h3>
+            <p id="kickPlayerText">¿Quitar a este jugador de la sala?</p>
+            <div class="modal-buttons row-btns">
+                <button class="modal-btn btn-outline" onclick="closeKickPlayerModal()">Cancelar</button>
+                <button class="modal-btn btn-danger" onclick="confirmKickPlayer()">Quitar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- FIN DE LA PARTIDA -->
     <div id="gameOverModal" class="modal-overlay">
         <div class="modal-box game-over-box">
