@@ -86,7 +86,7 @@ body {
 .btn-outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); }
 .btn-danger { background: var(--color-red); color: #ECE5DB; }
 
-#joinModal, #claimModal, #tooltipModal, #diceModal, #viewPlayerModal, #resetGameModal, #noticeModal, #gameOverModal { display: none; }
+#joinModal, #claimModal, #tooltipModal, #diceModal, #viewPlayerModal, #resetGameModal, #noticeModal, #gameOverModal, #kickPlayerModal { display: none; }
 #loadingModal { display: none; z-index: 3000; }
 .loading-icon {
     width: 96px;
@@ -260,12 +260,18 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .leaderboard { display: flex; background: #1a1a1a; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); flex-direction: column; gap: 10px; }
 .leaderboard h3 { font-size: 0.85rem; color: var(--text-muted); text-align: center; text-transform: uppercase; letter-spacing: 1px; }
 .player-card {
-    background: #2a2a2a; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between;
-    align-items: center; border: 1px solid var(--border-color); border-left-width: 5px; cursor: pointer;
+    background: #2a2a2a; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border-color); border-left-width: 5px; cursor: pointer;
 }
-.player-card .pc-name { font-weight: bold; display: flex; align-items: center; gap: 8px; }
+.player-card .pc-name { flex: 1; font-weight: bold; display: flex; align-items: center; gap: 8px; }
 .player-card .pc-turn-tag { font-size: 0.7rem; background: #EBC21A; color: #1a1a1a; padding: 2px 6px; border-radius: 6px; margin-left: 6px; }
 .player-card .pc-score { font-weight: 900; }
+.pc-kick-btn {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--color-red);
+    background: rgba(199,64,63,0.15); color: var(--color-red); font-weight: 900; font-size: 0.8rem;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; padding: 0;
+}
+.pc-kick-btn:active { transform: scale(0.92); }
 
 /* --- VER CARTILLA DE OTRO --- */
 .view-player-box { max-width: 420px; }
