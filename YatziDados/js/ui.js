@@ -56,6 +56,7 @@ function applyBoardTheme() {
     board.style.borderColor = hexToRgba(hex, 0.7);
     board.style.boxShadow = `0 0 0 1px ${hexToRgba(hex, 0.28)} inset, 0 10px 28px ${hexToRgba(hex, 0.14)}`;
     board.style.background = solidBg;
+    board.style.setProperty('--player-color', hex);
 }
 function readableTextOn(hex) {
     const h = hex.replace('#', '');
