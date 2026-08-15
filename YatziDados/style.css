@@ -184,21 +184,21 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     min-height: 50px; text-align: center; position: relative;
 }
 .cat-cell {
-    flex: 1.15; background: var(--sheet-cell); border: 2px solid var(--sheet-border);
+    flex: 1.15; background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.16);
     color: var(--sheet-ink); font-size: 1.2rem; flex-direction: column; gap: 1px; padding: 4px;
 }
-.cat-cell .dice-svg { width: 60%; height: 60%; }
+.cat-cell .dice-svg { width: 34px; height: 34px; }
 .cat-cell .cat-icon-svg { width: 34px; height: 34px; stroke: var(--sheet-ink); }
 .cat-cell .cat-sub { font-size: 0.6rem; letter-spacing: 1px; font-weight: 800; color: var(--sheet-ink); opacity: 0.75; }
 .cat-cell .cat-yatzy { font-size: 1.05rem; letter-spacing: 1px; color: var(--sheet-gold); }
 
 .score-cell {
-    flex: 1; background: var(--sheet-cell); border: 2px solid var(--sheet-border); color: var(--sheet-ink);
+    flex: 1; background: rgba(255,255,255,0.045); border: 2px solid rgba(255,255,255,0.16); color: var(--sheet-ink);
     font-size: 1.15rem;
 }
-.score-cell.ghost { background: var(--sheet-cell-alt); color: var(--sheet-ink); opacity: 0.55; font-style: italic; border-style: dashed; }
+.score-cell.ghost { background: rgba(255,255,255,0.02); color: var(--sheet-ink); opacity: 0.7; font-style: italic; border-style: dashed; }
 .score-cell.locked { cursor: default; border-width: 3px; }
-.score-cell.disabled-turn { opacity: 0.4; cursor: not-allowed; background: var(--sheet-cell-alt); }
+.score-cell.disabled-turn { opacity: 0.55; cursor: not-allowed; background: rgba(0,0,0,0.12); }
 .score-cell.yatzy-again { animation: pulseYatzy 1s infinite; }
 @keyframes pulseYatzy { 0%,100%{ box-shadow: 0 0 0 0 rgba(235,194,26,0.7);} 50%{ box-shadow: 0 0 0 7px rgba(235,194,26,0);} }
 .score-cell.joker-eligible {
@@ -220,16 +220,16 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     50% { transform: translateX(5px); }
     75% { transform: translateX(-3px); }
 }
-.score-cell.undoable { outline: 3px dashed var(--sheet-red); outline-offset: 2px; }
+.score-cell.undoable { outline: 3px dashed var(--player-color, var(--sheet-red)); outline-offset: 2px; }
 
-.bonus-row { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+.bonus-row { display: flex; gap: 8px; margin-top: 0; align-items: center; min-height: 50px; }
 .bonus-cell {
-    width: 74px; height: 74px; border-radius: 50%; text-align: center; font-weight: 900;
-    background: var(--sheet-cell); border: 3px solid var(--sheet-border); cursor: pointer; font-size: 0.72rem;
+    width: 50px; height: 50px; border-radius: 50%; text-align: center; font-weight: 900;
+    background: rgba(255,255,255,0.07); border: 3px solid rgba(255,255,255,0.16); cursor: pointer; font-size: 0.58rem;
     display: flex; align-items: center; justify-content: center; margin-left: auto; margin-right: 6px;
-    color: var(--sheet-ink); line-height: 1.1;
+    color: var(--sheet-ink); line-height: 1.1; flex-shrink: 0;
 }
-.bonus-cell.done { background: var(--sheet-green); border-color: var(--sheet-green); color: #0f2408; font-size: 1rem; }
+.bonus-cell.done { background: var(--sheet-green); border-color: var(--sheet-green); color: #0f2408; font-size: 0.8rem; }
 
 .yatzy-checks {
     position: absolute; top: -8px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px;
@@ -276,12 +276,13 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .view-player-sheet .mini-board .cat-cell,
 .view-player-sheet .mini-board .score-cell { min-height: 34px; font-size: 0.8rem; border-width: 2px; border-radius: 8px; }
 .view-player-sheet .mini-board .cat-cell { padding: 2px; gap: 0; }
-.view-player-sheet .mini-board .cat-cell .dice-svg { width: 50%; height: 50%; }
+.view-player-sheet .mini-board .cat-cell .dice-svg { width: 20px; height: 20px; }
 .view-player-sheet .mini-board .cat-cell .cat-icon-svg { width: 20px; height: 20px; }
 .view-player-sheet .mini-board .cat-cell .cat-sub { font-size: 0.42rem; }
 .view-player-sheet .mini-board .cat-cell .cat-yatzy { font-size: 0.7rem; }
-.view-player-sheet .mini-board .bonus-row { margin-top: 4px; }
-.view-player-sheet .mini-board .bonus-cell { width: 44px; height: 44px; font-size: 0.5rem; border-width: 2px; }
+.view-player-sheet .mini-board .bonus-row { margin-top: 0; min-height: 34px; }
+.view-player-sheet .mini-board .bonus-cell { width: 34px; height: 34px; font-size: 0.42rem; border-width: 2px; }
+.view-player-sheet .mini-board .bonus-cell.done { font-size: 0.55rem; }
 
 /* --- LOG COMPARTIDO --- */
 .game-log-panel {
