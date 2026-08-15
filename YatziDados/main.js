@@ -48,3 +48,5 @@ window.closeResetGameModal = closeResetGameModal;
 window.confirmGameReset = confirmGameReset;
 window.closeNotice = closeNotice;
 window.claimHost = claimHost;
+window.closeKickPlayerModal = closeKickPlayerModal;
+window.confirmKickPlayer = confirmKickPlayer;
