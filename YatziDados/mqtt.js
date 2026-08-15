@@ -59,14 +59,27 @@ function connectToRoom(code, isReconnect = false) {
     mqttClient.on('message', (topic, message) => {
         try {
             const data = JSON.parse(message.toString());
+
+            // El campo "id" en un mensaje 'remove' es el jugador afectado, no el
+            // remitente, asi que se maneja antes del filtro generico de abajo
+            // (si no, un jugador nunca se enteraria de que lo sacaron).
+            if (data.action === 'remove') {
+                if (data.id === myId) {
+                    if (data.reason === 'kick') handleKickedFromRoom();
+                    return;
+                }
+                delete playersData[data.id];
+                pendingOrder = pendingOrder.filter(pid => pid !== data.id);
+                renderLeaderboard(); renderPreGame(); updateHostWarning();
+                return;
+            }
+
             if (data.id === myId) return;
 
             if (data.hostId && (!hostId || !hostIsPresent())) {
                 hostId = data.hostId;
                 refreshHostStatus();
             }
-
-            if (data.action === 'remove') { delete playersData[data.id]; renderLeaderboard(); renderPreGame(); updateHostWarning(); return; }
 
             if (data.action === 'claim_offer') {
                 if (data.targetId === myId && !claimResolved && Object.values(myScores).every(v => v === null) && (data.scores)) {
@@ -159,8 +172,8 @@ function acceptClaim() {
 }
 function declineClaim() { pendingClaim = null; document.getElementById('claimModal').style.display = 'none'; }
 
-function broadcastRemove(idToRemove) {
-    if (mqttClient && currentRoom) mqttClient.publish(`yatzy_app_xyz/room/${currentRoom}`, JSON.stringify({ action: 'remove', id: idToRemove }));
+function broadcastRemove(idToRemove, reason) {
+    if (mqttClient && currentRoom) mqttClient.publish(`yatzy_app_xyz/room/${currentRoom}`, JSON.stringify({ action: 'remove', id: idToRemove, reason: reason || null }));
 }
 function broadcastClaimOffer(targetId, offeredId) {
     if (mqttClient && currentRoom) {
@@ -170,4 +183,49 @@ function broadcastClaimOffer(targetId, offeredId) {
             action: 'claim_offer', targetId, offeredId, name: cached.name, score: cached.score, scores: cached.scores, extraYatzys: cached.extraYatzys || 0
         }));
     }
+}
+
+// ===== QUITAR JUGADOR DE LA SALA (SOLO ANFITRION, ANTES DE INICIAR) =====
+let pendingKickId = null;
+function requestKickPlayer(id) {
+    if (!isRoomCreator || gameStarted) return;
+    const p = playersData[id];
+    if (!p || id === myId) return;
+    pendingKickId = id;
+    document.getElementById('kickPlayerText').textContent = `¿Quitar a "${p.name}" de la sala?`;
+    document.getElementById('kickPlayerModal').style.display = 'flex';
+}
+function closeKickPlayerModal() {
+    pendingKickId = null;
+    document.getElementById('kickPlayerModal').style.display = 'none';
+}
+function confirmKickPlayer() {
+    if (!pendingKickId) return;
+    const id = pendingKickId;
+    delete playersData[id];
+    pendingOrder = pendingOrder.filter(pid => pid !== id);
+    broadcastRemove(id, 'kick');
+    closeKickPlayerModal();
+    renderLeaderboard();
+    renderPreGame();
+}
+
+// Se ejecuta cuando el anfitrion me saca de la sala a mi.
+function handleKickedFromRoom() {
+    try { if (mqttClient) mqttClient.end(true); } catch (e) {}
+    mqttClient = null;
+    currentRoom = null;
+    clearSession();
+    const gameArea = document.getElementById('gameArea');
+    const hostBar = document.getElementById('hostControlsBar');
+    const logPanel = document.getElementById('gameLogPanel');
+    const leaderboardPanel = document.getElementById('leaderboardPanel');
+    const roomInfo = document.getElementById('roomInfoDisplay');
+    if (gameArea) gameArea.style.display = 'none';
+    if (hostBar) { hostBar.querySelectorAll('.modal-btn').forEach(b => b.style.display = 'none'); }
+    if (logPanel) logPanel.style.display = 'none';
+    if (leaderboardPanel) leaderboardPanel.style.display = 'none';
+    if (roomInfo) roomInfo.style.display = 'none';
+    document.getElementById('lobbyModal').style.display = 'flex';
+    showNotice('El anfitrion te quito de la sala.', 'Fuera de la sala');
 }
