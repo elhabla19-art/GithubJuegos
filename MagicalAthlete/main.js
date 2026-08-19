@@ -43,11 +43,11 @@ function entrarSala() {
     var nombre = localStorage.getItem('magical_athlete_nombre_prefill');
     var sala = localStorage.getItem('magical_athlete_sala_prefill');
     if (!nombre) {
-        alert('No se ha configurado un nombre. Usa ?nombre=XXX en la URL.');
+        showNotice('No se ha configurado un nombre. Usa ?nombre=XXX en la URL.');
         return;
     }
     if (!sala || sala.length !== 4) {
-        alert('No se ha configurado una sala valida. Usa ?sala=XXXX en la URL.');
+        showNotice('No se ha configurado una sala valida. Usa ?sala=XXXX en la URL.');
         return;
     }
     sala = sala.toUpperCase();

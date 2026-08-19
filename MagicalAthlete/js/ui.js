@@ -183,3 +183,20 @@ function renderizarMisCorredores() {
         container.appendChild(wrapper);
     }
 }
+
+// ===== AVISO GENERAL (reemplaza alert() nativo, igual que en Yatzy) =====
+function showNotice(text, title) {
+    if (title === undefined) title = 'Aviso';
+    var titleEl = document.getElementById('noticeTitle');
+    var textEl = document.getElementById('noticeText');
+    if (titleEl) titleEl.textContent = title;
+    if (textEl) textEl.textContent = text;
+    var modal = document.getElementById('noticeModal');
+    if (modal) modal.style.display = 'flex';
+}
+function closeNotice() {
+    var modal = document.getElementById('noticeModal');
+    if (modal) modal.style.display = 'none';
+}
+window.showNotice = showNotice;
+window.closeNotice = closeNotice;

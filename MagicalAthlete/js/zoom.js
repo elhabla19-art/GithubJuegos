@@ -9,7 +9,7 @@ function abrirZoom(carta, mostrarBoton, soloVisualizacion) {
     var content = document.getElementById('zoomContent');
 
     if (!soloVisualizacion && carta.seleccionadoPor && carta.seleccionadoPorId !== myId) {
-        alert('Esta carta ya fue seleccionada por ' + carta.seleccionadoPor);
+        showNotice('Esta carta ya fue seleccionada por ' + carta.seleccionadoPor);
         return;
     }
 
@@ -33,7 +33,7 @@ function abrirZoom(carta, mostrarBoton, soloVisualizacion) {
                 if (typeof window.seleccionarCarta === 'function') {
                     window.seleccionarCarta(cartaEnZoom.id);
                 } else {
-                    alert('Error: funcion de seleccion no disponible.');
+                    showNotice('Error: funcion de seleccion no disponible.');
                 }
             }
             cerrarZoom();

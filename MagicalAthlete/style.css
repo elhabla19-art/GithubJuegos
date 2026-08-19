@@ -28,6 +28,23 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Ocultar cualquier scrollbar visible en toda la pagina (el scroll sigue
+   funcionando igual con rueda del mouse, gestos tactiles o teclado; solo
+   se oculta la barra visual). */
+html {
+    scrollbar-width: none;      /* Firefox */
+    -ms-overflow-style: none;   /* Edge/IE viejo */
+}
+*::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;              /* Chrome, Safari, Opera, Edge nuevo */
+}
+* {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
 body {
     background-color: var(--bg-main);
     color: var(--text-main);
@@ -460,6 +477,12 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     letter-spacing: 1px; 
 }
 
+#playersList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .player-card { 
     background: #1a1a2e; 
     border-radius: 10px; 
@@ -468,18 +491,110 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     flex-direction: column; 
     gap: 6px; 
     border: 1px solid var(--border-color); 
+    transition: opacity 0.2s, border-color 0.2s;
 }
 
 .player-card.me { 
     border-left: 4px solid var(--color-secondary); 
 }
 
+.player-card.is-host:not(.me) {
+    border-left: 4px solid var(--color-accent);
+}
+
+.player-card.pc-offline {
+    opacity: 0.55;
+}
+
 .player-card-header { 
     display: flex; 
     justify-content: space-between; 
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 6px;
     font-weight: bold; 
     font-size: 1.05rem;
     color: var(--text-main); 
+}
+
+.pc-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 4px;
+}
+
+.pc-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pc-score {
+    white-space: nowrap;
+}
+
+.pc-offline-tag {
+    background: var(--color-danger);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: bold;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+.pc-host-tag {
+    background: var(--color-accent);
+    color: #0A0B08;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: bold;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+.pc-remove-btn {
+    background: transparent;
+    border: 1px solid var(--color-danger);
+    color: var(--color-danger);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.pc-remove-btn:hover {
+    background: var(--color-danger);
+    color: #fff;
+}
+
+.pc-claim-host-btn {
+    background: var(--color-secondary);
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+    /* Sin esto, la clase compartida .modal-btn (flex: 1) hace que el boton se
+       estire y ocupe toda la fila del leaderboard, tapando "Puntos: X".
+       Yatzy ya tiene este override; a MagicalAthlete le faltaba. */
+    flex: none;
+}
+.pc-claim-host-btn:hover {
+    opacity: 0.85;
 }
 
 .player-cards {
@@ -579,6 +694,30 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 
 .zoom-content .btn-choose:active {
     transform: scale(0.95);
+}
+
+/* --- MODAL DE GANADORES --- */
+/* BUG FIX: el modal-box no tenia limite de altura, asi que con muchas
+   cartas ganadoras crecia mas alla del viewport. Como el overlay centra
+   verticalmente y no es scrolleable, la parte de arriba (y el boton
+   "Cerrar", al final del todo) quedaban fuera de pantalla sin forma de
+   llegar a ellos -especialmente grave en celular-. Ahora el modal-box tiene
+   una altura maxima fija y es un contenedor flex en columna: solo la lista
+   de ganadores (#ganadoresContent) scrollea internamente, mientras que el
+   boton "Cerrar" queda siempre visible debajo, fuera del area con scroll. */
+#ganadoresModal .modal-box {
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow: hidden;
+}
+
+#ganadoresContent {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-right: 4px;
 }
 
 /* --- MODAL DE INTERCAMBIO --- */

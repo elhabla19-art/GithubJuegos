@@ -87,6 +87,15 @@ function loadSession() {
                     } else {
                         seenNames[name] = id;
                     }
+                    // El estado "desconectado" es transitorio de la conexion en
+                    // vivo (se detecta con el testamento MQTT y se confirma con
+                    // cualquier mensaje que llegue). No debe arrastrarse desde
+                    // una sesion vieja guardada en localStorage: asumimos que
+                    // todos estan en linea hasta que la red diga lo contrario,
+                    // para no mostrar un "Desconectado" fantasma al recargar.
+                    if (playersData[id]) {
+                        playersData[id].offline = false;
+                    }
                 }
                 for (var i = 0; i < toRemove.length; i++) {
                     delete playersData[toRemove[i]];
@@ -159,7 +168,7 @@ function getRegistryEntry(room, name) {
 function reconnectToSession() {
     var session = loadSession();
     if (!session) {
-        alert('No hay sesion guardada para reconectar.');
+        showNotice('No hay sesion guardada para reconectar.');
         return;
     }
     document.getElementById('lobbyModal').style.display = 'none';

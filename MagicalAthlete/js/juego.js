@@ -55,19 +55,19 @@ function seleccionarCarta(cartaId) {
         return;
     }
     if (carta.tanda !== tandaActual) {
-        alert('Esta carta no pertenece al lote actual.');
+        showNotice('Esta carta no pertenece al lote actual.');
         return;
     }
     if (carta.seleccionadoPor) {
-        alert('Esta carta ya fue seleccionada por ' + carta.seleccionadoPor);
+        showNotice('Esta carta ya fue seleccionada por ' + carta.seleccionadoPor);
         return;
     }
     if (carta.descartada) {
-        alert('Esta carta ya fue descartada.');
+        showNotice('Esta carta ya fue descartada.');
         return;
     }
     if (carta.esGanadora) {
-        alert('Esta carta ya es ganadora.');
+        showNotice('Esta carta ya es ganadora.');
         return;
     }
     var seleccionadasEnTanda = misSelecciones.filter(function(id) {
@@ -81,7 +81,7 @@ function seleccionarCarta(cartaId) {
         return c && c.tanda === tandaActual && !c.descartada && !c.esGanadora;
     });
     if (seleccionadasEnTanda.length >= MAX_SELECCIONES) {
-        alert('Ya seleccionaste tus 2 cartas de este lote.');
+        showNotice('Ya seleccionaste tus 2 cartas de este lote.');
         return;
     }
     carta.seleccionadoPor = myName;
@@ -175,11 +175,11 @@ window.verificarSiguienteLote = verificarSiguienteLote;
 function iniciarJuego() {
     var numJugadores = Object.keys(playersData).length;
     if (numJugadores === 0) {
-        alert('No hay jugadores en la sala. Espera a que alguien se una.');
+        showNotice('No hay jugadores en la sala. Espera a que alguien se una.');
         return;
     }
     if (gameStarted && !cicloTerminado()) {
-        alert('Todavia hay corredores en juego. Espera a que todos usen y descarten sus corredores actuales.');
+        showNotice('Todavia hay corredores en juego. Espera a que todos usen y descarten sus corredores actuales.');
         return;
     }
 
@@ -213,7 +213,7 @@ function iniciarJuego() {
     }
 
     if (mazoRestante.length < cartasPorLote) {
-        alert('No quedan suficientes corredores en el mazo para repartir a todos los jugadores (quedan ' + mazoRestante.length + '). Reinicia la partida para barajar un mazo nuevo.');
+        showNotice('No quedan suficientes corredores en el mazo para repartir a todos los jugadores (quedan ' + mazoRestante.length + '). Reinicia la partida para barajar un mazo nuevo.');
         return;
     }
 
@@ -252,7 +252,7 @@ function mostrarModalSeleccion(cartasDisponibles, titulo, callback) {
     var contenido = document.getElementById('intercambioContenido');
     var tituloElem = document.getElementById('intercambioTitulo');
     if (!modal) {
-        alert('Error: no se encontro el modal de intercambio.');
+        showNotice('Error: no se encontro el modal de intercambio.');
         return;
     }
     tituloElem.textContent = titulo || 'Selecciona una carta';
@@ -289,14 +289,14 @@ window.cerrarIntercambio = cerrarIntercambio;
 
 function intercambiarPor17(cartaActual) {
     if (!mazoRestante || mazoRestante.length === 0) {
-        alert('No quedan corredores en el mazo para copiar.');
+        showNotice('No quedan corredores en el mazo para copiar.');
         return;
     }
     var candidatosNumeros = mazoRestante.filter(function(n) {
         return n !== 17 && n !== 33;
     });
     if (candidatosNumeros.length === 0) {
-        alert('No quedan corredores disponibles en el mazo para copiar.');
+        showNotice('No quedan corredores disponibles en el mazo para copiar.');
         return;
     }
     var mezclados = candidatosNumeros.slice();
@@ -333,7 +333,7 @@ function intercambiarPor33(cartaActual) {
         return true;
     });
     if (ganadoras.length === 0) {
-        alert('No hay cartas ganadoras disponibles (o son especiales).');
+        showNotice('No hay cartas ganadoras disponibles (o son especiales).');
         return;
     }
 
@@ -512,12 +512,12 @@ function setActiveCard(cartaId) {
         }
     }
     if (!carta || carta.descartada || carta.esGanadora) {
-        alert('Esta carta no esta disponible.');
+        showNotice('Esta carta no esta disponible.');
         return;
     }
 
     if (typeof todosLotesCicloCompletos === 'function' && !todosLotesCicloCompletos()) {
-        alert('Todavia faltan corredores por repartir/escoger. Espera a que todos los jugadores tengan sus 4 corredores antes de usar uno.');
+        showNotice('Todavia faltan corredores por repartir/escoger. Espera a que todos los jugadores tengan sus 4 corredores antes de usar uno.');
         return;
     }
 
@@ -525,7 +525,7 @@ function setActiveCard(cartaId) {
 
     if (activeActual) {
         if (activeActual !== cartaId) {
-            alert('Ya elegiste tu corredor para usar esta ronda. No puedes cambiar de carta hasta la proxima ronda.');
+            showNotice('Ya elegiste tu corredor para usar esta ronda. No puedes cambiar de carta hasta la proxima ronda.');
         }
         return;
     }
@@ -576,6 +576,7 @@ function aplicarDescarteActivas(ganadorId) {
             data.selecciones = misSelecciones.slice();
         }
     }
+
     renderizarCartas();
     renderizarMisCorredores();
     actualizarUI();
@@ -643,7 +644,11 @@ function actualizarUI() {
     }
     var resetBtn = document.getElementById('resetGameBtn');
     if (resetBtn) {
-        var esAnfitrion = !currentRoom || !hostId || hostId === myId;
+        // Estricto: solo se muestra si YO soy el anfitrion confirmado. Antes
+        // caia en "true" tambien cuando todavia no habia anfitrion asignado
+        // (!hostId), lo que dejaba el boton visible (y funcional, ver
+        // resetGlobalGame) para cualquiera durante ese breve margen.
+        var esAnfitrion = hostId === myId;
         resetBtn.style.display = esAnfitrion ? '' : 'none';
     }
     renderLeaderboard();
@@ -716,18 +721,47 @@ function resetGlobalGame() {
         resetLocalGame();
         return;
     }
-    if (hostId && hostId !== myId) {
-        alert('Solo el anfitrion de la sala puede reiniciar la partida.');
+    // Estricto: se exige ser el anfitrion confirmado (hostId === myId). Antes
+    // el chequeo era "if (hostId && hostId !== myId)", que dejaba pasar a
+    // CUALQUIERA cuando hostId todavia era null (por ejemplo, en el breve
+    // margen antes de que alguien se autoproclame anfitrion). Solo el
+    // anfitrion puede reiniciar la partida para todos.
+    if (hostId !== myId) {
+        if (!hostId) {
+            showNotice('Todavia no hay un anfitrion asignado en la sala. Espera un momento e intenta de nuevo.');
+        } else {
+            showNotice('Solo el anfitrion de la sala puede reiniciar la partida.');
+        }
         return;
     }
-    if (!confirm('Reiniciar la partida para TODOS los jugadores? Se perderan las selecciones y puntajes.')) {
-        return;
+    var modal = document.getElementById('resetGameModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        // Respaldo por si el modal no esta en el HTML (no deberia pasar):
+        // no usamos confirm() nativo, asi que preferimos avisar y no actuar
+        // en vez de mostrar el dialogo feo del navegador.
+        console.error('resetGameModal no encontrado en el HTML.');
+        showNotice('No se pudo abrir el dialogo de reinicio. Recarga la pagina e intenta de nuevo.');
     }
+}
+window.resetGlobalGame = resetGlobalGame;
+
+function closeResetGameModal() {
+    var modal = document.getElementById('resetGameModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeResetGameModal = closeResetGameModal;
+
+function confirmResetGlobalGame() {
+    closeResetGameModal();
+    // Se revalida por si el anfitrion cambio mientras el modal estaba abierto.
+    if (hostId !== myId) return;
     broadcastReset();
     resetLocalGame();
     broadcastState('sync');
 }
-window.resetGlobalGame = resetGlobalGame;
+window.confirmResetGlobalGame = confirmResetGlobalGame;
 
 function resetLocalGame() {
     cartas = [];
@@ -759,7 +793,7 @@ window.resetLocalGame = resetLocalGame;
 function mostrarGanadores() {
     var ganadoras = cartas.filter(function(c) { return c.esGanadora; });
     if (ganadoras.length === 0) {
-        alert('No hay cartas ganadoras aun.');
+        showNotice('No hay cartas ganadoras aun.');
         return;
     }
     var modal = document.getElementById('ganadoresModal');
@@ -813,11 +847,29 @@ function mostrarGanadores() {
         numSpan.textContent = prefijo + ' - #' + numeroMostrado;
         numSpan.style.fontWeight = 'bold';
         info.appendChild(numSpan);
-        var dueno = 'Desconocido';
-        for (var id in playersData) {
-            if (playersData[id].cartasGanadoras && playersData[id].cartasGanadoras.indexOf(c.id) !== -1) {
-                dueno = playersData[id].name;
-                break;
+        // BUG FIX: el "Dueno" se buscaba solo cruzando la carta contra
+        // playersData (o, como respaldo, removedPlayersRegistry, que es
+        // solo en memoria y se pierde al recargar la pagina). Ahora la
+        // fuente principal es c.nombreGanador, guardado directo en la carta
+        // en el momento en que se marca "1°" -sobrevive expulsiones,
+        // reconexiones y recargas-. Los otros dos metodos quedan solo como
+        // respaldo para cartas ganadas antes de este arreglo.
+        var dueno = c.nombreGanador || 'Desconocido';
+        if (dueno === 'Desconocido') {
+            for (var id in playersData) {
+                if (playersData[id].cartasGanadoras && playersData[id].cartasGanadoras.indexOf(c.id) !== -1) {
+                    dueno = playersData[id].name;
+                    break;
+                }
+            }
+        }
+        if (dueno === 'Desconocido' && typeof removedPlayersRegistry === 'object' && removedPlayersRegistry) {
+            for (var removedName in removedPlayersRegistry) {
+                var entry = removedPlayersRegistry[removedName];
+                if (entry && entry.cartasGanadoras && entry.cartasGanadoras.indexOf(c.id) !== -1) {
+                    dueno = removedName;
+                    break;
+                }
             }
         }
         var duenoSpan = document.createElement('span');

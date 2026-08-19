@@ -62,6 +62,43 @@
         </div>
     </div>
 
+    <!-- AVISO GENERAL (reemplaza alert() nativo) -->
+    <div id="noticeModal" class="modal-overlay" style="display: none;" onclick="closeNotice()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="noticeTitle">Aviso</h3>
+            <p id="noticeText">-</p>
+            <button class="modal-btn btn-primary" onclick="closeNotice()">Entendido</button>
+        </div>
+    </div>
+
+    <!-- REINICIAR PARTIDA (SOLO ANFITRION) -->
+    <div id="resetGameModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h3>Reiniciar partida</h3>
+            <p>Esto borrara las selecciones y puntajes de TODOS los jugadores.</p>
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-outline" onclick="closeResetGameModal()">Cancelar</button>
+                    <button class="modal-btn btn-danger" onclick="confirmResetGlobalGame()">Reiniciar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ELIMINAR JUGADOR (SOLO ANFITRION, PIDE CONFIRMACION) -->
+    <div id="removePlayerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h3>Eliminar jugador</h3>
+            <p id="removePlayerText">¿Seguro que quieres eliminar a este jugador de la sala?</p>
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-outline" onclick="closeRemovePlayerModal()">Cancelar</button>
+                    <button class="modal-btn btn-danger" onclick="confirmRemovePlayer()">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DE ZOOM -->
     <div id="zoomModal" class="modal-overlay" style="display: none;">
         <div class="modal-box zoom-box">
@@ -72,8 +109,8 @@
     </div>
 
     <!-- MODAL DE GANADORES -->
-    <div id="ganadoresModal" class="modal-overlay" style="display: none;">
-        <div class="modal-box zoom-box">
+    <div id="ganadoresModal" class="modal-overlay" style="display: none;" onclick="document.getElementById('ganadoresModal').style.display='none'">
+        <div class="modal-box zoom-box" onclick="event.stopPropagation()">
             <div id="ganadoresContent" class="zoom-content">
                 <!-- Se llena dinámicamente -->
             </div>
