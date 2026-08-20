@@ -63,6 +63,7 @@ function entrarSala() {
     mazoRestante = [];
     copiasVisuales = {};
     gruposExpansion31 = {};
+    cartaTwistActual = null;
     gameStarted = false;
     gameInitiator = null;
     hostId = null;
@@ -82,6 +83,7 @@ function entrarSala() {
         mazoRestante = session.mazoRestante || [];
         copiasVisuales = session.copiasVisuales || {};
         gruposExpansion31 = session.gruposExpansion31 || {};
+        cartaTwistActual = session.cartaTwistActual || null;
         hostId = session.hostId || null;
         if (session.playersData) {
             playersData = session.playersData;

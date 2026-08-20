@@ -219,6 +219,7 @@ function connectToRoom(code, isReconnect) {
         mazoRestante = [];
         copiasVisuales = {};
         gruposExpansion31 = {};
+        cartaTwistActual = null;
         gameStarted = false;
         gameInitiator = null;
         hostId = null;
@@ -555,6 +556,9 @@ function connectToRoom(code, isReconnect) {
                     if (playersData[myId]) playersData[myId].activeCardId = null;
                 }
                 estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
+                if (data.cartaTwistActual !== undefined) {
+                    cartaTwistActual = data.cartaTwistActual;
+                }
                 for (var pid in playersData) {
                     if (!puntosPorJugador[pid]) {
                         puntosPorJugador[pid] = 0;
@@ -714,6 +718,9 @@ function connectToRoom(code, isReconnect) {
                 if (data.estadoRonda) {
                     estadoRonda = data.estadoRonda;
                 }
+                if (data.cartaTwistActual !== undefined) {
+                    cartaTwistActual = data.cartaTwistActual;
+                }
                 sanearMiActivaLocal();
                 actualizarUI();
                 saveSession();
@@ -815,6 +822,7 @@ function broadcastState(action) {
             playersData: playersData,
             puntosPorJugador: puntosPorJugador,
             estadoRonda: estadoRonda,
+            cartaTwistActual: cartaTwistActual || null,
             hostId: hostId || null,
             updatedAt: Date.now()
         });
@@ -865,6 +873,7 @@ function broadcastStart(cartasArray, tanda, mazo, esPrimerLote, nuevoCiclo) {
             playersData: playersData,
             puntosPorJugador: puntosPorJugador,
             estadoRonda: estadoRonda,
+            cartaTwistActual: cartaTwistActual || null,
             hostId: hostId || null,
             updatedAt: Date.now()
         });
@@ -1002,6 +1011,7 @@ function handleRemovedFromRoom() {
     mazoRestante = [];
     copiasVisuales = {};
     gruposExpansion31 = {};
+    cartaTwistActual = null;
     gameStarted = false;
     gameInitiator = null;
     hostId = null;

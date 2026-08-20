@@ -54,6 +54,7 @@ function saveSession() {
             mazoRestante: mazoRestante,
             copiasVisuales: copiasVisuales,
             gruposExpansion31: gruposExpansion31,
+            cartaTwistActual: cartaTwistActual || null,
             hostId: hostId || null,
             updatedAt: Date.now()
         }));
@@ -75,6 +76,7 @@ function loadSession() {
             mazoRestante = data.mazoRestante || [];
             copiasVisuales = data.copiasVisuales || {};
             gruposExpansion31 = data.gruposExpansion31 || {};
+            cartaTwistActual = data.cartaTwistActual || null;
             hostId = data.hostId || null;
             if (data.playersData) {
                 playersData = data.playersData;
@@ -185,6 +187,7 @@ function reconnectToSession() {
     mazoRestante = session.mazoRestante || [];
     copiasVisuales = session.copiasVisuales || {};
     gruposExpansion31 = session.gruposExpansion31 || {};
+    cartaTwistActual = session.cartaTwistActual || null;
     hostId = session.hostId || null;
     if (session.playersData) {
         playersData = session.playersData;

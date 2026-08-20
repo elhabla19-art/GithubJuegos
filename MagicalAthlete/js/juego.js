@@ -314,6 +314,11 @@ function setActiveCard(cartaId) {
 window.setActiveCard = setActiveCard;
 
 function aplicarDescarteActivas(ganadorId) {
+    // Fin de ronda: la carta Twist revelada deja de ser valida, la proxima
+    // vez que alguien presione "Twist" se elegira una nueva.
+    if (typeof limpiarCartaTwist === 'function') {
+        limpiarCartaTwist();
+    }
     for (var id in playersData) {
         var data = playersData[id];
         if (!data) continue;
@@ -494,6 +499,9 @@ function resetLocalGame() {
     gruposExpansion31 = {};
     gameStarted = false;
     gameInitiator = null;
+    if (typeof limpiarCartaTwist === 'function') {
+        limpiarCartaTwist();
+    }
     for (var id in playersData) {
         playersData[id].selecciones = [];
         playersData[id].cartasGanadoras = [];
