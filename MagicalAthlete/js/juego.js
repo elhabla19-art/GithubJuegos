@@ -247,46 +247,6 @@ function iniciarJuego() {
 window.iniciarJuego = iniciarJuego;
 
 // Funciones de intercambio
-function mostrarModalSeleccion(cartasDisponibles, titulo, callback) {
-    var modal = document.getElementById('intercambioModal');
-    var contenido = document.getElementById('intercambioContenido');
-    var tituloElem = document.getElementById('intercambioTitulo');
-    if (!modal) {
-        showNotice('Error: no se encontro el modal de intercambio.');
-        return;
-    }
-    tituloElem.textContent = titulo || 'Selecciona una carta';
-    contenido.innerHTML = '';
-
-    cartasDisponibles.forEach(function(carta) {
-        var div = document.createElement('div');
-        div.className = 'carta-opcion';
-        var img = document.createElement('img');
-        img.src = carta.imagen;
-        img.alt = '#' + carta.numero;
-        img.loading = 'lazy';
-        div.appendChild(img);
-        var span = document.createElement('span');
-        span.textContent = '#' + carta.numero;
-        div.appendChild(span);
-
-        div.addEventListener('click', function(e) {
-            e.stopPropagation();
-            cerrarIntercambio();
-            callback(carta);
-        });
-        contenido.appendChild(div);
-    });
-
-    modal.style.display = 'flex';
-}
-
-function cerrarIntercambio() {
-    var modal = document.getElementById('intercambioModal');
-    if (modal) modal.style.display = 'none';
-}
-window.cerrarIntercambio = cerrarIntercambio;
-
 function intercambiarPor17(cartaActual) {
     if (!mazoRestante || mazoRestante.length === 0) {
         showNotice('No quedan corredores en el mazo para copiar.');
@@ -644,10 +604,6 @@ function actualizarUI() {
     }
     var resetBtn = document.getElementById('resetGameBtn');
     if (resetBtn) {
-        // Estricto: solo se muestra si YO soy el anfitrion confirmado. Antes
-        // caia en "true" tambien cuando todavia no habia anfitrion asignado
-        // (!hostId), lo que dejaba el boton visible (y funcional, ver
-        // resetGlobalGame) para cualquiera durante ese breve margen.
         var esAnfitrion = hostId === myId;
         resetBtn.style.display = esAnfitrion ? '' : 'none';
     }
@@ -716,53 +672,6 @@ function actualizarUI() {
 }
 window.actualizarUI = actualizarUI;
 
-function resetGlobalGame() {
-    if (!currentRoom) {
-        resetLocalGame();
-        return;
-    }
-    // Estricto: se exige ser el anfitrion confirmado (hostId === myId). Antes
-    // el chequeo era "if (hostId && hostId !== myId)", que dejaba pasar a
-    // CUALQUIERA cuando hostId todavia era null (por ejemplo, en el breve
-    // margen antes de que alguien se autoproclame anfitrion). Solo el
-    // anfitrion puede reiniciar la partida para todos.
-    if (hostId !== myId) {
-        if (!hostId) {
-            showNotice('Todavia no hay un anfitrion asignado en la sala. Espera un momento e intenta de nuevo.');
-        } else {
-            showNotice('Solo el anfitrion de la sala puede reiniciar la partida.');
-        }
-        return;
-    }
-    var modal = document.getElementById('resetGameModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    } else {
-        // Respaldo por si el modal no esta en el HTML (no deberia pasar):
-        // no usamos confirm() nativo, asi que preferimos avisar y no actuar
-        // en vez de mostrar el dialogo feo del navegador.
-        console.error('resetGameModal no encontrado en el HTML.');
-        showNotice('No se pudo abrir el dialogo de reinicio. Recarga la pagina e intenta de nuevo.');
-    }
-}
-window.resetGlobalGame = resetGlobalGame;
-
-function closeResetGameModal() {
-    var modal = document.getElementById('resetGameModal');
-    if (modal) modal.style.display = 'none';
-}
-window.closeResetGameModal = closeResetGameModal;
-
-function confirmResetGlobalGame() {
-    closeResetGameModal();
-    // Se revalida por si el anfitrion cambio mientras el modal estaba abierto.
-    if (hostId !== myId) return;
-    broadcastReset();
-    resetLocalGame();
-    broadcastState('sync');
-}
-window.confirmResetGlobalGame = confirmResetGlobalGame;
-
 function resetLocalGame() {
     cartas = [];
     misSelecciones = [];
@@ -789,100 +698,6 @@ function resetLocalGame() {
     saveSession();
 }
 window.resetLocalGame = resetLocalGame;
-
-function mostrarGanadores() {
-    var ganadoras = cartas.filter(function(c) { return c.esGanadora; });
-    if (ganadoras.length === 0) {
-        showNotice('No hay cartas ganadoras aun.');
-        return;
-    }
-    var modal = document.getElementById('ganadoresModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'ganadoresModal';
-        modal.className = 'modal-overlay';
-        modal.style.display = 'none';
-        modal.innerHTML = '<div class="modal-box zoom-box"><div id="ganadoresContent" class="zoom-content"></div><button class="modal-btn btn-secondary" onclick="document.getElementById(\'ganadoresModal\').style.display=\'none\'">Cerrar</button></div>';
-        document.body.appendChild(modal);
-    }
-    var content = document.getElementById('ganadoresContent');
-    if (!content) {
-        content = modal.querySelector('.zoom-content');
-    }
-    content.innerHTML = '';
-    var title = document.createElement('h3');
-    title.textContent = 'Cartas Ganadoras';
-    title.style.color = 'var(--text-main)';
-    title.style.marginBottom = '15px';
-    content.appendChild(title);
-
-    for (var i = 0; i < ganadoras.length; i++) {
-        var c = ganadoras[i];
-        var visual = copiasVisuales[c.id] || null;
-        var numeroMostrado = visual ? visual.numero : c.numero;
-        var imagenMostrada = visual ? visual.imagen : c.imagen;
-        var cardContainer = document.createElement('div');
-        cardContainer.style.display = 'flex';
-        cardContainer.style.alignItems = 'center';
-        cardContainer.style.gap = '10px';
-        cardContainer.style.marginBottom = '10px';
-        cardContainer.style.background = '#2a2a4a';
-        cardContainer.style.padding = '8px';
-        cardContainer.style.borderRadius = '8px';
-        cardContainer.style.width = '100%';
-        var img = document.createElement('img');
-        img.src = imagenMostrada;
-        img.alt = 'Corredor ' + numeroMostrado;
-        img.style.width = '60px';
-        img.style.height = '80px';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '4px';
-        cardContainer.appendChild(img);
-        var info = document.createElement('div');
-        info.style.display = 'flex';
-        info.style.flexDirection = 'column';
-        info.style.alignItems = 'flex-start';
-        var numSpan = document.createElement('span');
-        var prefijo = getPrefijoCarta(numeroMostrado);
-        numSpan.textContent = prefijo + ' - #' + numeroMostrado;
-        numSpan.style.fontWeight = 'bold';
-        info.appendChild(numSpan);
-        // BUG FIX: el "Dueno" se buscaba solo cruzando la carta contra
-        // playersData (o, como respaldo, removedPlayersRegistry, que es
-        // solo en memoria y se pierde al recargar la pagina). Ahora la
-        // fuente principal es c.nombreGanador, guardado directo en la carta
-        // en el momento en que se marca "1°" -sobrevive expulsiones,
-        // reconexiones y recargas-. Los otros dos metodos quedan solo como
-        // respaldo para cartas ganadas antes de este arreglo.
-        var dueno = c.nombreGanador || 'Desconocido';
-        if (dueno === 'Desconocido') {
-            for (var id in playersData) {
-                if (playersData[id].cartasGanadoras && playersData[id].cartasGanadoras.indexOf(c.id) !== -1) {
-                    dueno = playersData[id].name;
-                    break;
-                }
-            }
-        }
-        if (dueno === 'Desconocido' && typeof removedPlayersRegistry === 'object' && removedPlayersRegistry) {
-            for (var removedName in removedPlayersRegistry) {
-                var entry = removedPlayersRegistry[removedName];
-                if (entry && entry.cartasGanadoras && entry.cartasGanadoras.indexOf(c.id) !== -1) {
-                    dueno = removedName;
-                    break;
-                }
-            }
-        }
-        var duenoSpan = document.createElement('span');
-        duenoSpan.textContent = 'Dueno: ' + dueno;
-        duenoSpan.style.color = 'var(--text-muted)';
-        duenoSpan.style.fontSize = '0.8rem';
-        info.appendChild(duenoSpan);
-        cardContainer.appendChild(info);
-        content.appendChild(cardContainer);
-    }
-    modal.style.display = 'flex';
-}
-window.mostrarGanadores = mostrarGanadores;
 
 function resetRound() {
     for (var id in playersData) {
