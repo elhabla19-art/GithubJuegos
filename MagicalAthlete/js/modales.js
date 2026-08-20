@@ -205,6 +205,76 @@ function confirmRemovePlayer() {
     saveSession();
 }
 
+// ===== 3c. Mazos (elegir que mazos participan al repartir corredores) =====
+// La configuracion/logica de mazos (que mazos existen, cuales estan
+// activos, a que numeros de carta corresponden) vive en mazos.js. Aqui solo
+// se maneja la interfaz del modal.
+function abrirMazosModal() {
+    var modal = document.getElementById('mazosModal');
+    var contenido = document.getElementById('mazosContenido');
+    if (!modal || !contenido) {
+        showNotice('No se pudo abrir la seleccion de mazos.');
+        return;
+    }
+    if (typeof MAZOS_INFO === 'undefined' || typeof cargarMazosActivos !== 'function') {
+        showNotice('No se pudo cargar la configuracion de mazos.');
+        return;
+    }
+    var mazos = cargarMazosActivos();
+    contenido.innerHTML = '';
+
+    for (var i = 0; i < MAZOS_INFO.length; i++) {
+        var info = MAZOS_INFO[i];
+        var fila = document.createElement('label');
+        fila.className = 'mazo-fila';
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'mazo-checkbox';
+        checkbox.dataset.mazoKey = info.key;
+        checkbox.checked = mazos[info.key] !== false;
+
+        var texto = document.createElement('span');
+        texto.textContent = info.label;
+
+        fila.appendChild(checkbox);
+        fila.appendChild(texto);
+        contenido.appendChild(fila);
+    }
+
+    modal.style.display = 'flex';
+}
+
+function cerrarMazosModal() {
+    var modal = document.getElementById('mazosModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function guardarMazosDesdeModal() {
+    var contenido = document.getElementById('mazosContenido');
+    if (!contenido) {
+        cerrarMazosModal();
+        return;
+    }
+    var checkboxes = contenido.querySelectorAll('.mazo-checkbox');
+    var seleccionados = 0;
+    var nuevo = {};
+    for (var i = 0; i < checkboxes.length; i++) {
+        var cb = checkboxes[i];
+        var activo = !!cb.checked;
+        nuevo[cb.dataset.mazoKey] = activo;
+        if (activo) seleccionados++;
+    }
+    if (seleccionados === 0) {
+        showNotice('Debes dejar al menos un mazo activo.');
+        return;
+    }
+    if (typeof guardarMazosActivos === 'function') {
+        guardarMazosActivos(nuevo);
+    }
+    cerrarMazosModal();
+}
+
 // ===== 4. MODALES DE JUEGO =====
 
 // 4a. Intercambio (cartas 17 y 33, y expansion 31)
@@ -348,6 +418,9 @@ window.confirmResetGlobalGame = confirmResetGlobalGame;
 window.solicitarEliminarJugador = solicitarEliminarJugador;
 window.closeRemovePlayerModal = closeRemovePlayerModal;
 window.confirmRemovePlayer = confirmRemovePlayer;
+window.abrirMazosModal = abrirMazosModal;
+window.cerrarMazosModal = cerrarMazosModal;
+window.guardarMazosDesdeModal = guardarMazosDesdeModal;
 window.mostrarModalSeleccion = mostrarModalSeleccion;
 window.cerrarIntercambio = cerrarIntercambio;
 window.mostrarGanadores = mostrarGanadores;
