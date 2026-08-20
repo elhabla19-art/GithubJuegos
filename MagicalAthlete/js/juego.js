@@ -190,7 +190,15 @@ function iniciarJuego() {
     if (esPrimerLote) {
         mazoRestante = [];
         for (var i = 1; i <= TOTAL_IMAGENES; i++) {
-            mazoRestante.push(i);
+            // Solo se incluyen las cartas de los mazos actualmente activos
+            // (Base / Expansion / Noficiales), segun lo elegido en "Mazos".
+            if (typeof mazoActivoParaNumero !== 'function' || mazoActivoParaNumero(i)) {
+                mazoRestante.push(i);
+            }
+        }
+        if (mazoRestante.length === 0) {
+            showNotice('No hay mazos activos. Selecciona al menos uno en "Mazos" antes de repartir corredores.');
+            return;
         }
         for (var i = mazoRestante.length - 1; i > 0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
