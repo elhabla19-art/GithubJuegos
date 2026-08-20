@@ -70,28 +70,23 @@ const Animations = {
         }, 300);
     },
 
-    // Abrir modal QR
+    // Abrir modal QR (misma animación que dropdown)
     openModal(modal) {
         if (!modal) return;
+        modal.classList.remove('closing');
         modal.style.display = 'flex';
         void modal.offsetWidth;
         modal.classList.add('show');
-        const content = modal.querySelector('.qr-modal-content');
-        if (content) {
-            content.classList.add('modal-enter');
-        }
     },
 
-    // Cerrar modal QR
+    // Cerrar modal QR (misma animación que dropdown)
     closeModal(modal, callback) {
         if (!modal) return;
         modal.classList.remove('show');
-        const content = modal.querySelector('.qr-modal-content');
-        if (content) {
-            content.classList.remove('modal-enter');
-        }
+        modal.classList.add('closing');
         setTimeout(() => {
             modal.style.display = 'none';
+            modal.classList.remove('closing');
             if (callback) callback();
         }, 300);
     }

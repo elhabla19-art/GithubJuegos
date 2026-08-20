@@ -1,0 +1,134 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+Thumbs.db
+
+# Editor de código
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.~lock.*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencias
+node_modules/
+bower_components/
+
+# Archivos de construcción
+dist/
+build/
+*.min.js
+*.min.css
+
+# Archivos de configuración local
+.env
+.env.local
+.env.*.local
+
+# Archivos de caché
+.cache/
+.eslintcache
+.prettiercache
+.stylelintcache
+
+# Archivos de cobertura
+coverage/
+*.coveralls.json
+
+# Archivos de backup
+*.bak
+*.backup
+*.orig
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de compresión
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# IDE específicos
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Archivos de sistema operativo
+Desktop.ini
+$RECYCLE.BIN/
+
+# Archivos de editor de texto
+*.swp
+*.swo
+*~
+.~lock.*
+
+# Archivos de configuración de usuario
+*.user
+*.userprefs
+
+# Archivos de depuración
+*.pdb
+*.dll
+*.exe
+
+# Archivos de documentación generados
+docs/_build/
+site/
+
+# Archivos de pruebas
+*.test.js
+*.spec.js
+__tests__/
+__mocks__/
+
+# Archivos de cobertura de código
+coverage/
+.nyc_output/
+
+# Archivos de dependencias
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Archivos de entorno
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Archivos de caché del navegador
+*.cache
+.cache/
+public/.cache/
+
+# Archivos de compilación de TypeScript
+*.tsbuildinfo
+*.js.map
+*.d.ts.map

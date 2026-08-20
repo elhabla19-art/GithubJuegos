@@ -69,7 +69,7 @@ h1::after {
 .project-item {
     background: #773344;
     border-radius: 10px;
-    padding: 0.75rem; /* Antes 1rem 0.75rem */
+    padding: 0.75rem;
     text-align: center;
     cursor: pointer;
     display: flex;
@@ -86,15 +86,15 @@ h1::after {
 }
 
 .favicon-wrapper {
-    width: 100px;   /* Antes 80px */
-    height: 100px;  /* Antes 80px */
+    width: 100px;
+    height: 100px;
     margin-bottom: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(245, 233, 226, 0.1);
     border-radius: 14px;
-    padding: 8px;   /* Antes 10px */
+    padding: 8px;
     transition: background 0.3s ease;
 }
 
@@ -114,13 +114,13 @@ h1::after {
     display: none;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem; /* Antes 2rem */
+    font-size: 2.5rem;
     font-weight: bold;
     color: #773344;
 }
 
 .project-name {
-    font-size: 1rem; /* Antes 0.85rem */
+    font-size: 1rem;
     font-weight: 500;
 }
 
@@ -168,6 +168,9 @@ footer {
     border-color: #D44D5C;
 }
 
+/* ============================================================
+   QR MODAL - MISMA ANIMACIÓN QUE DROPDOWN
+   ============================================================ */
 .qr-modal {
     display: none;
     position: fixed;
@@ -181,8 +184,11 @@ footer {
 
 .qr-modal.show {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    animation: dropdownOpen 0.3s ease forwards;
+}
+
+.qr-modal.closing {
+    animation: dropdownClose 0.3s ease forwards;
 }
 
 .qr-modal-content {
@@ -192,6 +198,7 @@ footer {
     border: 1px solid #E3B5A4;
     max-width: 400px;
     width: 90%;
+    margin: auto;
 }
 
 .qr-image {
@@ -450,7 +457,7 @@ footer {
     h1 { font-size: 2rem; }
     h1::after { width: 60px; }
     .shelves { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem; }
-    .project-item { min-height: 130px; padding: 0.5rem; } /* Antes 0.75rem 0.5rem */
+    .project-item { min-height: 130px; padding: 0.5rem; }
     .favicon-wrapper { width: 80px; height: 80px; padding: 6px; }
     .favicon-placeholder { font-size: 2rem; }
     .project-name { font-size: 0.9rem; }
