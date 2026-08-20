@@ -408,6 +408,14 @@ function actualizarUI() {
         var esAnfitrion = hostId === myId;
         resetBtn.style.display = esAnfitrion ? '' : 'none';
     }
+    var mazosBtn = document.getElementById('mazosBtn');
+    if (mazosBtn) {
+        // Mismo criterio que resetGameBtn: solo el anfitrion decide los
+        // mazos, ya que es quien determina el mazoRestante al presionar
+        // "Corredores" (esPrimerLote) y ese mazo se sincroniza a todos.
+        var esAnfitrionMazos = hostId === myId;
+        mazosBtn.style.display = esAnfitrionMazos ? '' : 'none';
+    }
     renderLeaderboard();
     renderizarMisCorredores();
     if (typeof actualizarBotonesGlobales === 'function') {

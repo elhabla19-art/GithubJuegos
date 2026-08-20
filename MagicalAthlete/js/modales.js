@@ -210,6 +210,14 @@ function confirmRemovePlayer() {
 // activos, a que numeros de carta corresponden) vive en mazos.js. Aqui solo
 // se maneja la interfaz del modal.
 function abrirMazosModal() {
+    if (currentRoom && hostId !== myId) {
+        if (!hostId) {
+            showNotice('Todavia no hay un anfitrion asignado en la sala. Espera un momento e intenta de nuevo.');
+        } else {
+            showNotice('Solo el anfitrion de la sala puede elegir los mazos.');
+        }
+        return;
+    }
     var modal = document.getElementById('mazosModal');
     var contenido = document.getElementById('mazosContenido');
     if (!modal || !contenido) {
