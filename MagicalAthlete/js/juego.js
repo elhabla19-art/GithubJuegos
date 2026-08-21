@@ -5,8 +5,9 @@ var misSelecciones = [];
 var MAX_SELECCIONES = 2;
 var TOTAL_IMAGENES_BASE = 36;
 var TOTAL_IMAGENES_EXPANSION = 36;
-var NOFICIAL_COUNT = 4;                     // Nuevas cartas noficiales
-var TOTAL_IMAGENES = TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION + NOFICIAL_COUNT; // 76
+var NOFICIAL_COUNT = 25;
+var AMANO_COUNT = 1;
+var TOTAL_IMAGENES = TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION + NOFICIAL_COUNT + AMANO_COUNT;
 var cartaActivaId = null;
 var tandaActual = -1;
 var mazoRestante = [];
@@ -14,17 +15,18 @@ var LOTES_POR_CICLO = 2;
 var cicloTandaInicio = 0;
 var copiasVisuales = {};
 
-// Funciones globales para tipo y prefijo (incluyen NOFICIAL)
 function getTipoCarta(numero) {
     if (numero <= TOTAL_IMAGENES_BASE) return 'base';
     if (numero <= TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION) return 'expansion';
-    return 'noficial';
+    if (numero <= TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION + NOFICIAL_COUNT) return 'noficial';
+    return 'amano';
 }
 
 function getPrefijoCarta(numero) {
     if (numero <= TOTAL_IMAGENES_BASE) return 'BS';
     if (numero <= TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION) return 'EX';
-    return 'NO';
+    if (numero <= TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION + NOFICIAL_COUNT) return 'NO';
+    return 'AM';
 }
 
 function getImagenCarta(numero) {
@@ -33,9 +35,12 @@ function getImagenCarta(numero) {
     } else if (numero <= TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION) {
         var expNum = numero - TOTAL_IMAGENES_BASE;
         return 'imagenes/Expansion_' + expNum + '.png';
-    } else {
+    } else if (numero <= TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION + NOFICIAL_COUNT) {
         var nofNum = numero - (TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION);
         return 'imagenes/Noficial_' + nofNum + '.png';
+    } else {
+        var amaNum = numero - (TOTAL_IMAGENES_BASE + TOTAL_IMAGENES_EXPANSION + NOFICIAL_COUNT);
+        return 'imagenes/Amano_' + amaNum + '.png';
     }
 }
 
@@ -190,8 +195,6 @@ function iniciarJuego() {
     if (esPrimerLote) {
         mazoRestante = [];
         for (var i = 1; i <= TOTAL_IMAGENES; i++) {
-            // Solo se incluyen las cartas de los mazos actualmente activos
-            // (Base / Expansion / Noficiales), segun lo elegido en "Mazos".
             if (typeof mazoActivoParaNumero !== 'function' || mazoActivoParaNumero(i)) {
                 mazoRestante.push(i);
             }
@@ -255,12 +258,6 @@ function iniciarJuego() {
 }
 window.iniciarJuego = iniciarJuego;
 
-// ===== FUNCIONES DE CARTA ESPECIAL (movidas a cartase.js) =====
-// Las funciones intercambiarPor17, intercambiarPor33, activarExpansion31,
-// mostrarGrupoExpansion31, agregarCartaAGrupo, abrirZoomGrupoItem
-// ahora residen en js/cartase.js
-
-// ===== SET ACTIVE CARD (usa las funciones especiales globales) =====
 function setActiveCard(cartaId) {
     if (!playersData[myId]) {
         playersData[myId] = { name: myName, selecciones: [], cartasGanadoras: [], activeCardId: null };
@@ -314,8 +311,6 @@ function setActiveCard(cartaId) {
 window.setActiveCard = setActiveCard;
 
 function aplicarDescarteActivas(ganadorId) {
-    // Fin de ronda: la carta Twist revelada deja de ser valida, la proxima
-    // vez que alguien presione "Twist" se elegira una nueva.
     if (typeof limpiarCartaTwist === 'function') {
         limpiarCartaTwist();
     }
@@ -415,9 +410,6 @@ function actualizarUI() {
     }
     var mazosBtn = document.getElementById('mazosBtn');
     if (mazosBtn) {
-        // Mismo criterio que resetGameBtn: solo el anfitrion decide los
-        // mazos, ya que es quien determina el mazoRestante al presionar
-        // "Corredores" (esPrimerLote) y ese mazo se sincroniza a todos.
         var esAnfitrionMazos = hostId === myId;
         mazosBtn.style.display = esAnfitrionMazos ? '' : 'none';
     }
