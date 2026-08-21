@@ -325,6 +325,55 @@ function cerrarIntercambio() {
     if (modal) modal.style.display = 'none';
 }
 
+// 4a-2. Igual que mostrarModalSeleccion, pero cada opcion muestra ademas el
+// nombre del jugador dueno de esa carta debajo del numero (usado por
+// Expansion_13 para elegir de quien copiar la habilidad). Las opciones
+// marcadas con "bloqueada" se muestran deshabilitadas (no se pueden elegir).
+function mostrarModalSeleccionJugadores(itemsDisponibles, titulo, callback) {
+    var modal = document.getElementById('intercambioModal');
+    var contenido = document.getElementById('intercambioContenido');
+    var tituloElem = document.getElementById('intercambioTitulo');
+    if (!modal) {
+        showNotice('Error: no se encontro el modal de intercambio.');
+        return;
+    }
+    tituloElem.textContent = titulo || 'Selecciona una carta';
+    contenido.innerHTML = '';
+
+    itemsDisponibles.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'carta-opcion' + (item.bloqueada ? ' carta-opcion-bloqueada' : '');
+        var img = document.createElement('img');
+        img.src = item.imagen;
+        img.alt = '#' + item.numero;
+        img.loading = 'lazy';
+        div.appendChild(img);
+        var span = document.createElement('span');
+        span.textContent = '#' + item.numero;
+        div.appendChild(span);
+        var nombreSpan = document.createElement('span');
+        nombreSpan.className = 'carta-opcion-jugador';
+        nombreSpan.textContent = item.nombreJugador || '';
+        div.appendChild(nombreSpan);
+
+        if (item.bloqueada) {
+            var lockSpan = document.createElement('span');
+            lockSpan.className = 'carta-opcion-lock';
+            lockSpan.textContent = 'Bloqueada';
+            div.appendChild(lockSpan);
+        } else {
+            div.addEventListener('click', function(e) {
+                e.stopPropagation();
+                cerrarIntercambio();
+                callback(item);
+            });
+        }
+        contenido.appendChild(div);
+    });
+
+    modal.style.display = 'flex';
+}
+
 // 4b. Ganadores
 function mostrarGanadores() {
     var ganadoras = cartas.filter(function(c) { return c.esGanadora; });
@@ -430,5 +479,6 @@ window.abrirMazosModal = abrirMazosModal;
 window.cerrarMazosModal = cerrarMazosModal;
 window.guardarMazosDesdeModal = guardarMazosDesdeModal;
 window.mostrarModalSeleccion = mostrarModalSeleccion;
+window.mostrarModalSeleccionJugadores = mostrarModalSeleccionJugadores;
 window.cerrarIntercambio = cerrarIntercambio;
 window.mostrarGanadores = mostrarGanadores;

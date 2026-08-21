@@ -756,6 +756,29 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     font-weight: bold;
 }
 
+/* Nombre del jugador dueno de la carta (Expansion_13: elegir a quien copiar) */
+#intercambioContenido .carta-opcion-jugador {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: normal;
+}
+
+/* Opciones no elegibles (cartas especiales que Expansion_13 no puede copiar) */
+#intercambioContenido .carta-opcion-bloqueada {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+#intercambioContenido .carta-opcion-bloqueada:hover {
+    border-color: transparent;
+    transform: none;
+}
+#intercambioContenido .carta-opcion-lock {
+    color: var(--color-danger);
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
 #intercambioContenido .carta-opcion-agregar {
     justify-content: center;
     min-width: 90px;

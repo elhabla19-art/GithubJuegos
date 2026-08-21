@@ -150,6 +150,9 @@ function renderizarMisCorredores() {
                     } else if (typeof EXPANSION_31_NUMERO !== 'undefined' && c.numero === EXPANSION_31_NUMERO) {
                         activarExpansion31(c);
                         return;
+                    } else if (typeof EXPANSION_13_NUMERO !== 'undefined' && c.numero === EXPANSION_13_NUMERO) {
+                        intercambiarPorExpansion13(c);
+                        return;
                     }
                 }
 

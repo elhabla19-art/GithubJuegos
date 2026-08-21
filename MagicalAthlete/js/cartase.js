@@ -9,8 +9,17 @@ var opciones33 = {};
 // Numero de la carta especial "Expansion_31" (acumulativa, sin limite)
 var EXPANSION_31_NUMERO = TOTAL_IMAGENES_BASE + 31; // 67
 
+// Numero de la carta especial "Expansion_13" (copia la habilidad de un
+// corredor que otro jugador este usando actualmente)
+var EXPANSION_13_NUMERO = TOTAL_IMAGENES_BASE + 13; // 49
+
+// Opciones ya calculadas para el modal de Expansion_13 (para volver a
+// mostrar el mismo modal si se cierra sin elegir, igual que con 17/33)
+var opcionesExpansion13 = {};
+
 // Exponer al ambito global
 window.EXPANSION_31_NUMERO = EXPANSION_31_NUMERO;
+window.EXPANSION_13_NUMERO = EXPANSION_13_NUMERO;
 window.gruposExpansion31 = gruposExpansion31;
 
 // ===== INTERCAMBIO POR CARTA 17 =====
@@ -117,6 +126,81 @@ function intercambiarPor33(cartaActual) {
             actualizarUI();
             saveSession();
             delete opciones33[cartaActual.id];
+        }
+    );
+}
+
+// ===== INTERCAMBIO POR CARTA EXPANSION_13 (copiar habilidad de jugador) =====
+// A diferencia de 17/33 (que copian entre corredores del mazo), esta carta
+// copia la habilidad de un corredor que otro jugador tenga actualmente
+// "en uso" (su activeCardId). No se puede copiar una carta especial (17,
+// 33 o Expansion_31): esas opciones se muestran en el modal pero
+// bloqueadas, para que quede claro que existen pero no son elegibles.
+function intercambiarPorExpansion13(cartaActual) {
+    if (copiasVisuales[cartaActual.id]) return;
+
+    if (opcionesExpansion13[cartaActual.id]) {
+        mostrarModalSeleccionJugadores(
+            opcionesExpansion13[cartaActual.id],
+            'Elige la habilidad de un jugador para copiar (13) - solo tu la veras asi',
+            function(elegido) {
+                copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
+                renderizarCartas();
+                renderizarMisCorredores();
+                actualizarUI();
+                saveSession();
+                delete opcionesExpansion13[cartaActual.id];
+            }
+        );
+        return;
+    }
+
+    var candidatos = [];
+    for (var pid in playersData) {
+        if (pid === myId) continue;
+        var pdata = playersData[pid];
+        if (!pdata || !pdata.activeCardId) continue;
+
+        var cartaActiva = null;
+        for (var i = 0; i < cartas.length; i++) {
+            if (cartas[i].id === pdata.activeCardId) {
+                cartaActiva = cartas[i];
+                break;
+            }
+        }
+        if (!cartaActiva || cartaActiva.descartada) continue;
+
+        var esEspecialBloqueada = (
+            cartaActiva.numero === 17 ||
+            cartaActiva.numero === 33 ||
+            (typeof EXPANSION_31_NUMERO !== 'undefined' && cartaActiva.numero === EXPANSION_31_NUMERO)
+        );
+
+        candidatos.push({
+            numero: cartaActiva.numero,
+            imagen: cartaActiva.imagen,
+            nombreJugador: pdata.name || 'Jugador',
+            bloqueada: esEspecialBloqueada
+        });
+    }
+
+    if (candidatos.length === 0) {
+        showNotice('Ningun otro jugador esta usando un corredor todavia.');
+        return;
+    }
+
+    opcionesExpansion13[cartaActual.id] = candidatos;
+
+    mostrarModalSeleccionJugadores(
+        candidatos,
+        'Elige la habilidad de un jugador para copiar (13) - solo tu la veras asi',
+        function(elegido) {
+            copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
+            renderizarCartas();
+            renderizarMisCorredores();
+            actualizarUI();
+            saveSession();
+            delete opcionesExpansion13[cartaActual.id];
         }
     );
 }
@@ -260,6 +344,7 @@ function abrirZoomGrupoItem(cartaId, idx) {
 // Exponer funciones globalmente
 window.intercambiarPor17 = intercambiarPor17;
 window.intercambiarPor33 = intercambiarPor33;
+window.intercambiarPorExpansion13 = intercambiarPorExpansion13;
 window.activarExpansion31 = activarExpansion31;
 window.mostrarGrupoExpansion31 = mostrarGrupoExpansion31;
 window.agregarCartaAGrupo = agregarCartaAGrupo;

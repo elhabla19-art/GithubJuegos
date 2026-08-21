@@ -217,6 +217,7 @@ function iniciarJuego() {
         gruposExpansion31 = {};
         opciones17 = {};
         opciones33 = {};
+        if (typeof opcionesExpansion13 !== 'undefined') opcionesExpansion13 = {};
         puntosPorJugador = {};
         for (var id in playersData) {
             playersData[id].selecciones = [];
@@ -479,6 +480,7 @@ function resetLocalGame() {
     gruposExpansion31 = {};
     opciones17 = {};
     opciones33 = {};
+    if (typeof opcionesExpansion13 !== 'undefined') opcionesExpansion13 = {};
     gameStarted = false;
     gameInitiator = null;
     if (typeof limpiarCartaTwist === 'function') {
