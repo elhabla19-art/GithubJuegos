@@ -215,6 +215,8 @@ function iniciarJuego() {
         tandaActual = -1;
         copiasVisuales = {};
         gruposExpansion31 = {};
+        opciones17 = {};
+        opciones33 = {};
         puntosPorJugador = {};
         for (var id in playersData) {
             playersData[id].selecciones = [];
@@ -280,24 +282,10 @@ function setActiveCard(cartaId) {
     }
 
     var activeActual = playersData[myId].activeCardId;
-
     if (activeActual) {
         if (activeActual !== cartaId) {
             showNotice('Ya elegiste tu corredor para usar esta ronda. No puedes cambiar de carta hasta la proxima ronda.');
         }
-        return;
-    }
-
-    if (carta.numero === 17) {
-        intercambiarPor17(carta);
-        return;
-    }
-    if (carta.numero === 33) {
-        intercambiarPor33(carta);
-        return;
-    }
-    if (carta.numero === window.EXPANSION_31_NUMERO) {
-        activarExpansion31(carta);
         return;
     }
 
@@ -489,6 +477,8 @@ function resetLocalGame() {
     mazoRestante = [];
     copiasVisuales = {};
     gruposExpansion31 = {};
+    opciones17 = {};
+    opciones33 = {};
     gameStarted = false;
     gameInitiator = null;
     if (typeof limpiarCartaTwist === 'function') {

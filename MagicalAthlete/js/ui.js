@@ -119,14 +119,10 @@ function renderizarMisCorredores() {
         imgContainer.addEventListener('click', function(c, v) {
             return function(e) {
                 e.stopPropagation();
-                if (typeof EXPANSION_31_NUMERO !== 'undefined' && c.numero === EXPANSION_31_NUMERO &&
-                    typeof gruposExpansion31 !== 'undefined' && gruposExpansion31[c.id]) {
-                    mostrarGrupoExpansion31(c.id);
-                    return;
-                }
-                var cartaParaZoom = c;
+
+                // Si ya tiene copia visual, mostrar zoom de la copia
                 if (v) {
-                    cartaParaZoom = {
+                    var cartaParaZoom = {
                         id: c.id,
                         numero: v.numero,
                         imagen: v.imagen,
@@ -136,8 +132,29 @@ function renderizarMisCorredores() {
                         descartada: c.descartada,
                         tanda: c.tanda
                     };
+                    abrirZoom(cartaParaZoom, false, true);
+                    return;
                 }
-                abrirZoom(cartaParaZoom, false, true);
+
+                // Verificar si la carta está activa
+                var esActiva = (playersData[myId] && playersData[myId].activeCardId === c.id);
+
+                // Si está activa y es especial, mostrar modal correspondiente
+                if (esActiva) {
+                    if (c.numero === 17) {
+                        intercambiarPor17(c);
+                        return;
+                    } else if (c.numero === 33) {
+                        intercambiarPor33(c);
+                        return;
+                    } else if (typeof EXPANSION_31_NUMERO !== 'undefined' && c.numero === EXPANSION_31_NUMERO) {
+                        activarExpansion31(c);
+                        return;
+                    }
+                }
+
+                // En cualquier otro caso, mostrar zoom normal
+                abrirZoom(c, false, true);
             };
         }(carta, visual));
         var img = document.createElement('img');

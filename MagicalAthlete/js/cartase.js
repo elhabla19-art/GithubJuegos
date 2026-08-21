@@ -3,16 +3,36 @@
 
 // Variable global para el grupo de copias visuales de la Expansion_31
 var gruposExpansion31 = {};
+var opciones17 = {};
+var opciones33 = {};
 
-// Número de la carta especial "Expansion_31" (acumulativa, sin límite)
+// Numero de la carta especial "Expansion_31" (acumulativa, sin limite)
 var EXPANSION_31_NUMERO = TOTAL_IMAGENES_BASE + 31; // 67
 
-// Exponer al ámbito global
+// Exponer al ambito global
 window.EXPANSION_31_NUMERO = EXPANSION_31_NUMERO;
 window.gruposExpansion31 = gruposExpansion31;
 
 // ===== INTERCAMBIO POR CARTA 17 =====
 function intercambiarPor17(cartaActual) {
+    if (copiasVisuales[cartaActual.id]) return;
+
+    if (opciones17[cartaActual.id]) {
+        mostrarModalSeleccion(
+            opciones17[cartaActual.id],
+            'Elige un corredor para copiar (17) - solo tu lo veras asi',
+            function(elegido) {
+                copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
+                renderizarCartas();
+                renderizarMisCorredores();
+                actualizarUI();
+                saveSession();
+                delete opciones17[cartaActual.id];
+            }
+        );
+        return;
+    }
+
     if (!mazoRestante || mazoRestante.length === 0) {
         showNotice('No quedan corredores en el mazo para copiar.');
         return;
@@ -35,20 +55,42 @@ function intercambiarPor17(cartaActual) {
         return { numero: n, imagen: getImagenCarta(n) };
     });
 
-    mostrarModalSeleccion(seleccionables, 'Elige un corredor para copiar (17) - solo tu lo veras asi', function(elegido) {
-        copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
-        playersData[myId].activeCardId = cartaActual.id;
-        broadcastSetActive(myId, cartaActual.id);
-        broadcastState('sync');
-        renderizarCartas();
-        renderizarMisCorredores();
-        actualizarUI();
-        saveSession();
-    });
+    opciones17[cartaActual.id] = seleccionables;
+
+    mostrarModalSeleccion(
+        seleccionables,
+        'Elige un corredor para copiar (17) - solo tu lo veras asi',
+        function(elegido) {
+            copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
+            renderizarCartas();
+            renderizarMisCorredores();
+            actualizarUI();
+            saveSession();
+            delete opciones17[cartaActual.id];
+        }
+    );
 }
 
 // ===== INTERCAMBIO POR CARTA 33 =====
 function intercambiarPor33(cartaActual) {
+    if (copiasVisuales[cartaActual.id]) return;
+
+    if (opciones33[cartaActual.id]) {
+        mostrarModalSeleccion(
+            opciones33[cartaActual.id],
+            'Elige una carta ganadora para copiar (33) - solo tu la veras asi',
+            function(elegido) {
+                copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
+                renderizarCartas();
+                renderizarMisCorredores();
+                actualizarUI();
+                saveSession();
+                delete opciones33[cartaActual.id];
+            }
+        );
+        return;
+    }
+
     var vistos = {};
     var ganadoras = cartas.filter(function(c) {
         if (c.id === cartaActual.id) return false;
@@ -63,16 +105,20 @@ function intercambiarPor33(cartaActual) {
         return;
     }
 
-    mostrarModalSeleccion(ganadoras, 'Elige una carta ganadora para copiar (33) - solo tu la veras asi', function(cartaElegida) {
-        copiasVisuales[cartaActual.id] = { numero: cartaElegida.numero, imagen: cartaElegida.imagen };
-        playersData[myId].activeCardId = cartaActual.id;
-        broadcastSetActive(myId, cartaActual.id);
-        broadcastState('sync');
-        renderizarCartas();
-        renderizarMisCorredores();
-        actualizarUI();
-        saveSession();
-    });
+    opciones33[cartaActual.id] = ganadoras;
+
+    mostrarModalSeleccion(
+        ganadoras,
+        'Elige una carta ganadora para copiar (33) - solo tu la veras asi',
+        function(elegido) {
+            copiasVisuales[cartaActual.id] = { numero: elegido.numero, imagen: elegido.imagen };
+            renderizarCartas();
+            renderizarMisCorredores();
+            actualizarUI();
+            saveSession();
+            delete opciones33[cartaActual.id];
+        }
+    );
 }
 
 // ===== EXPANSION_31 (acumulativa) =====
@@ -88,12 +134,6 @@ function activarExpansion31(carta) {
     if (!gruposExpansion31[carta.id]) {
         gruposExpansion31[carta.id] = [{ numero: carta.numero, imagen: carta.imagen }];
     }
-    playersData[myId].activeCardId = carta.id;
-    broadcastSetActive(myId, carta.id);
-    broadcastState('sync');
-    renderizarMisCorredores();
-    actualizarUI();
-    saveSession();
     mostrarGrupoExpansion31(carta.id);
 }
 
