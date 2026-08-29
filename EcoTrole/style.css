@@ -200,6 +200,32 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     color: var(--text-muted);
 }
 
+/* PUNTOS */
+.puntos-container {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    justify-content: center;
+}
+
+.punto {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color 0.3s;
+}
+
+.punto.verde {
+    background-color: var(--color-success);
+    box-shadow: 0 0 12px rgba(17, 140, 60, 0.5);
+}
+
+.punto.rojo {
+    background-color: var(--color-danger);
+    box-shadow: 0 0 12px rgba(222, 63, 42, 0.5);
+}
+
 /* --- PANEL LATERAL --- */
 .side-panel { 
     width: 100%; 

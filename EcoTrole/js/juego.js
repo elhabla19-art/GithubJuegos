@@ -115,10 +115,6 @@ function iniciarJuego() {
     
     aplicarRolesLocales(rolAsignado, habilidadesPorJugador);
     
-    if (typeof iniciarTemporizador === 'function') {
-        iniciarTemporizador();
-    }
-    
     renderizarMisCartas();
     actualizarUI();
     saveSession();
@@ -194,7 +190,41 @@ function obtenerObjeto() {
 }
 
 function apagon() {
-    showNotice('Apagon - Funcionalidad en desarrollo.');
+    var estado = window.getEstadoActual ? window.getEstadoActual() : null;
+    var puntosV = window.getPuntosVerdes ? window.getPuntosVerdes() : 3;
+
+    // 3. Si el temporizador está corriendo -> se pinta un punto en rojo
+    //    (si con esto llegan a 3 rojos, consumirPunto() detiene el tiempo y avisa a todos)
+    if (estado === ESTADO_TEMPORIZADOR.CORRIENDO) {
+        if (typeof window.consumirPunto === 'function') {
+            window.consumirPunto();
+        }
+        return;
+    }
+
+    // 5 y 6. Si el temporizador ya terminó
+    if (estado === ESTADO_TEMPORIZADOR.TERMINADO) {
+        if (puntosV === 0) {
+            // 6. Ya hay 3 rojos -> se reinician los puntos y el tiempo
+            if (typeof window.resetearPuntos === 'function') {
+                window.resetearPuntos();
+            }
+        }
+        // 5. Aun quedan puntos verdes -> se mantienen tal cual, solo se reinicia el tiempo
+        if (typeof window.reiniciarTemporizador === 'function') {
+            window.reiniciarTemporizador();
+        }
+        if (typeof window.iniciarTemporizador === 'function') {
+            window.iniciarTemporizador();
+        }
+        return;
+    }
+
+    // 2. Estado inicial (DETENIDO) o PAUSADO -> simplemente arranca el tiempo,
+    //    sin tocar los puntos.
+    if (typeof window.iniciarTemporizador === 'function') {
+        window.iniciarTemporizador();
+    }
 }
 
 function resetLocalGame() {
@@ -207,8 +237,11 @@ function resetLocalGame() {
     mazoObjetosRestantes = [];
     objetosRestantes = TOTAL_OBJETOS;
     
-    if (typeof reiniciarTemporizador === 'function') {
-        reiniciarTemporizador();
+    if (typeof window.reiniciarTemporizador === 'function') {
+        window.reiniciarTemporizador();
+    }
+    if (typeof window.resetearPuntos === 'function') {
+        window.resetearPuntos();
     }
     
     for (var id in playersData) {
@@ -234,7 +267,8 @@ function broadcastStartGame(roles, habilidades, mazoObjetos) {
             habilidades: habilidades,
             mazoObjetos: mazoObjetos,
             hostId: hostId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            updatedAt: Date.now()
         });
         mqttClient.publish(topic, payload, { qos: 1, retain: true });
     }
@@ -266,35 +300,14 @@ function broadcastReset() {
     }
 }
 
-function broadcastState(action) {
-    if (action === undefined) action = 'sync';
-    if (mqttClient && currentRoom) {
-        var topic = 'ecotrole/room/' + currentRoom;
-        var payload = JSON.stringify({
-            action: action,
-            id: myId,
-            name: myName,
-            playersData: playersData,
-            juegoIniciado: juegoIniciado,
-            rolesAsignados: rolesAsignados,
-            mazoObjetosRestantes: mazoObjetosRestantes,
-            objetosRestantes: objetosRestantes,
-            hostId: hostId || null,
-            updatedAt: Date.now()
-        });
-        var opts = { qos: 1 };
-        if (action === 'sync') {
-            opts.retain = true;
-        }
-        mqttClient.publish(topic, payload, opts);
-    }
-}
+// NOTA: broadcastState() vive unicamente en mqtt.js (fuente unica de verdad).
+// Antes estaba duplicada aqui con el mismo codigo; se elimino para evitar
+// confusion/mantenimiento en dos lugares.
 
 window.iniciarJuego = iniciarJuego;
 window.obtenerObjeto = obtenerObjeto;
 window.apagon = apagon;
 window.resetLocalGame = resetLocalGame;
 window.broadcastReset = broadcastReset;
-window.broadcastState = broadcastState;
 window.broadcastStartGame = broadcastStartGame;
 window.broadcastObjeto = broadcastObjeto;

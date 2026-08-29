@@ -18,16 +18,24 @@ var ESTADO_TEMPORIZADOR = {
 
 var estadoActual = ESTADO_TEMPORIZADOR.DETENIDO;
 
+// Puntos verdes (inicialmente 3)
+var puntosVerdes = 3;
+
 // DOM elements
 var timerDisplay = null;
 var timerStatus = null;
+var puntosContainer = null;
 
 function initTimerElements() {
     timerDisplay = document.getElementById('timerDisplay');
     timerStatus = document.getElementById('timerStatus');
+    puntosContainer = document.getElementById('puntosContainer');
 }
 
 function formatearTiempo(segundos) {
+    if (typeof segundos !== 'number' || isNaN(segundos) || !isFinite(segundos)) {
+        segundos = 0;
+    }
     if (segundos < 0) segundos = 0;
     var mins = Math.floor(segundos / 60);
     var secs = segundos % 60;
@@ -44,7 +52,6 @@ function actualizarDisplay() {
 
 function actualizarClasesDisplay() {
     if (!timerDisplay) return;
-    // Remover todas las clases de estado
     timerDisplay.classList.remove('running', 'warning', 'danger', 'stopped');
     timerStatus.classList.remove('running', 'warning', 'danger', 'stopped');
 
@@ -60,7 +67,7 @@ function actualizarClasesDisplay() {
         } else {
             timerDisplay.classList.add('running');
             timerStatus.classList.add('running');
-            timerStatus.textContent = 'Tiempo en marcha...';
+            timerStatus.textContent = 'Para el siguiente APAGON';
         }
     } else if (estadoActual === ESTADO_TEMPORIZADOR.DETENIDO) {
         timerDisplay.classList.add('stopped');
@@ -81,7 +88,57 @@ function actualizarClasesDisplay() {
     }
 }
 
+// ===== PUNTOS =====
+function actualizarPuntosUI() {
+    if (!puntosContainer) initTimerElements();
+    if (!puntosContainer) return;
+    var puntos = puntosContainer.querySelectorAll('.punto');
+    for (var i = 0; i < puntos.length; i++) {
+        puntos[i].className = 'punto' + (i < puntosVerdes ? ' verde' : ' rojo');
+    }
+}
+
+function consumirPunto() {
+    if (puntosVerdes > 0) {
+        puntosVerdes--;
+        actualizarPuntosUI();
+        broadcastPuntoConsumido(puntosVerdes);
+        if (puntosVerdes === 0) {
+            // Todos rojos -> terminar el tiempo para mi Y avisar a todos los demas
+            detenerTemporizador(true);
+            broadcastTiempoTerminado();
+        }
+    }
+}
+
+function resetearPuntos() {
+    puntosVerdes = 3;
+    actualizarPuntosUI();
+    broadcastPuntosReset();
+}
+
+// ===== BROADCAST PUNTOS =====
+function broadcastPuntoConsumido(valor) {
+    if (mqttClient && currentRoom) {
+        var topic = 'ecotrole/room/' + currentRoom;
+        var payload = JSON.stringify({ action: 'punto_consumido', id: myId, puntosVerdes: valor });
+        mqttClient.publish(topic, payload, { qos: 1 });
+    }
+}
+
+function broadcastPuntosReset() {
+    if (mqttClient && currentRoom) {
+        var topic = 'ecotrole/room/' + currentRoom;
+        var payload = JSON.stringify({ action: 'puntos_reset', id: myId });
+        mqttClient.publish(topic, payload, { qos: 1 });
+    }
+}
+
+// ===== TEMPORIZADOR =====
 function iniciarTemporizador() {
+    if (typeof tiempoRestante !== 'number' || isNaN(tiempoRestante) || !isFinite(tiempoRestante)) {
+        tiempoRestante = TIEMPO_TOTAL_SEGUNDOS;
+    }
     if (temporizadorActivo) return;
     if (tiempoRestante <= 0) {
         tiempoRestante = TIEMPO_TOTAL_SEGUNDOS;
@@ -107,13 +164,11 @@ function iniciarTemporizador() {
             if (tiempoRestante <= 0) {
                 tiempoRestante = 0;
                 detenerTemporizador(true);
-                // Notificar que el tiempo terminó
                 broadcastTiempoTerminado();
             }
         }
     }, 100);
     
-    // Broadcast del inicio del temporizador
     broadcastTiempoInicio(tiempoRestante);
     actualizarDisplay();
 }
@@ -167,7 +222,7 @@ function reiniciarTemporizador() {
     actualizarDisplay();
 }
 
-// ===== FUNCIONES DE BROADCAST =====
+// ===== FUNCIONES DE BROADCAST (tiempo) =====
 function broadcastTiempoInicio(tiempo) {
     if (mqttClient && currentRoom) {
         var topic = 'ecotrole/room/' + currentRoom;
@@ -230,12 +285,10 @@ function broadcastSincronizarTiempo() {
     }
 }
 
-// ===== FUNCIONES PARA RECIBIR EVENTOS =====
+// ===== FUNCIONES PARA RECIBIR EVENTOS (tiempo) =====
 function recibirTiempoInicio(data) {
     if (data.id === myId) return;
-    // Si el tiempo ya está corriendo, ignorar
     if (temporizadorActivo) return;
-    
     tiempoRestante = data.tiempoRestante || TIEMPO_TOTAL_SEGUNDOS;
     iniciarTemporizador();
 }
@@ -258,9 +311,7 @@ function recibirTiempoTerminado(data) {
 
 function recibirTiempoSync(data) {
     if (data.id === myId) return;
-    // Solo sincronizar si no estamos en medio de una accion local
     if (temporizadorActivo) return;
-    
     tiempoRestante = data.tiempoRestante || TIEMPO_TOTAL_SEGUNDOS;
     if (data.estado === ESTADO_TEMPORIZADOR.CORRIENDO) {
         iniciarTemporizador();
@@ -275,10 +326,45 @@ function recibirTiempoSync(data) {
     }
 }
 
+// ===== FUNCIONES PARA RECIBIR EVENTOS DE PUNTOS (se llaman desde mqtt.js) =====
+function recibirPuntoConsumido(data) {
+    if (data.id === myId) return;
+    puntosVerdes = data.puntosVerdes;
+    actualizarPuntosUI();
+    // Respaldo por si el mensaje 'tiempo_terminado' se pierde: si llegan los 3 rojos, detener igual.
+    if (puntosVerdes === 0) {
+        detenerTemporizador(true);
+    }
+}
+
+function recibirPuntosReset(data) {
+    if (data.id === myId) return;
+    puntosVerdes = 3;
+    actualizarPuntosUI();
+}
+
+// ===== GETTERS =====
+function getTiempoRestante() {
+    return tiempoRestante;
+}
+
+function getEstadoActual() {
+    return estadoActual;
+}
+
+function getTemporizadorActivo() {
+    return temporizadorActivo;
+}
+
+function getPuntosVerdes() {
+    return puntosVerdes;
+}
+
 // ===== INICIALIZACION =====
 document.addEventListener('DOMContentLoaded', function() {
     initTimerElements();
     actualizarDisplay();
+    actualizarPuntosUI();
 });
 
 // Exponer funciones globalmente
@@ -294,6 +380,15 @@ window.recibirTiempoReanudar = recibirTiempoReanudar;
 window.recibirTiempoTerminado = recibirTiempoTerminado;
 window.recibirTiempoSync = recibirTiempoSync;
 
-window.tiempoRestante = function() { return tiempoRestante; };
-window.estadoActualTiempo = function() { return estadoActual; };
-window.temporizadorActivoFlag = function() { return temporizadorActivo; };
+// Exponer getters
+window.getTiempoRestante = getTiempoRestante;
+window.getEstadoActual = getEstadoActual;
+window.getTemporizadorActivo = getTemporizadorActivo;
+window.getPuntosVerdes = getPuntosVerdes;
+
+// Exponer funciones de puntos
+window.consumirPunto = consumirPunto;
+window.resetearPuntos = resetearPuntos;
+window.actualizarPuntosUI = actualizarPuntosUI;
+window.recibirPuntoConsumido = recibirPuntoConsumido;
+window.recibirPuntosReset = recibirPuntosReset;

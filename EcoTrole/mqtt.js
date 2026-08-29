@@ -173,8 +173,8 @@ function connectToRoom(code, isReconnect) {
         }
 
         if (!playersData[myId]) {
-            playersData[myId] = { 
-                name: myName, 
+            playersData[myId] = {
+                name: myName,
                 rol: null,
                 habilidad: null,
                 objetos: [],
@@ -188,7 +188,7 @@ function connectToRoom(code, isReconnect) {
             hideJoiningId(myId);
             scheduleRevealIfNoClaim(myId);
         }
-        
+
         joinSuccess(code);
         broadcastState('join');
         broadcastRequestState();
@@ -235,11 +235,37 @@ function connectToRoom(code, isReconnect) {
     });
 
     mqttClient.on('message', function(topic, message) {
+        // Verificar que el mensaje no esté vacío
+        if (!message || message.length === 0) {
+            try {
+                if (mqttClient) {
+                    mqttClient.publish(topic, '', { qos: 1, retain: true });
+                }
+            } catch (e) {}
+            return;
+        }
+
         try {
             var data = JSON.parse(message.toString());
+        } catch (parseError) {
+            console.warn('Mensaje MQTT no válido recibido, limpiando...');
+            try {
+                if (mqttClient) {
+                    mqttClient.publish(topic, '', { qos: 1, retain: true });
+                }
+            } catch (e) {}
+            return;
+        }
 
+        // Procesamiento de mensajes
+        try {
             if (data.action === 'sync' || data.action === 'start_game') {
-                var antiguedadMs = data.updatedAt ? (Date.now() - data.updatedAt) : Infinity;
+                // BUG CRITICO CORREGIDO: start_game se publicaba con "timestamp",
+                // pero aqui solo se leia "updatedAt" -> siempre daba Infinity -> el
+                // mensaje se descartaba como "viejo" antes de asignar roles a nadie
+                // salvo el anfitrion (que aplica su rol localmente, sin pasar por MQTT).
+                var marcaTiempo = data.updatedAt || data.timestamp;
+                var antiguedadMs = marcaTiempo ? (Date.now() - marcaTiempo) : 0;
                 if (antiguedadMs > ROOM_STALE_MS) {
                     try {
                         if (mqttClient) {
@@ -292,8 +318,8 @@ function connectToRoom(code, isReconnect) {
                 }
                 if (data.targetId === myId && !claimResolved) {
                     claimResolved = true;
-                    pendingClaim = { 
-                        oldId: data.offeredId, 
+                    pendingClaim = {
+                        oldId: data.offeredId,
                         name: data.name,
                         rol: data.rol || null,
                         habilidad: data.habilidad || null,
@@ -352,7 +378,7 @@ function connectToRoom(code, isReconnect) {
                 rolesAsignados = true;
                 juegoIniciador = data.id;
                 hostId = data.hostId || hostId;
-                
+
                 for (var id in data.roles) {
                     if (!playersData[id]) {
                         playersData[id] = { name: id, rol: null, habilidad: null, objetos: [] };
@@ -361,7 +387,7 @@ function connectToRoom(code, isReconnect) {
                     if (data.habilidades && data.habilidades[id]) {
                         playersData[id].habilidad = data.habilidades[id];
                     }
-                    
+
                     if (id === myId) {
                         miRol = data.roles[id];
                         if (data.habilidades && data.habilidades[id]) {
@@ -377,20 +403,21 @@ function connectToRoom(code, isReconnect) {
                         }
                     }
                 }
-                
+
                 if (data.mazoObjetos) {
                     mazoObjetosRestantes = data.mazoObjetos.slice();
                     objetosRestantes = mazoObjetosRestantes.length;
                 }
-                
-                renderizarCartas();
+
                 renderizarMisCartas();
                 actualizarUI();
                 saveSession();
+                return;
             }
 
             if (data.action === 'objeto') {
                 if (data.id === myId) {
+                    // Ya se procesó localmente
                 } else {
                     if (playersData[data.id]) {
                         if (!playersData[data.id].objetos) {
@@ -405,6 +432,7 @@ function connectToRoom(code, isReconnect) {
                 renderLeaderboard();
                 actualizarUI();
                 saveSession();
+                return;
             }
 
             if (data.action === 'sync') {
@@ -425,23 +453,53 @@ function connectToRoom(code, isReconnect) {
                 }
                 if (data.playersData) {
                     for (var pid in data.playersData) {
+                        var remoteP = data.playersData[pid];
                         if (pid !== myId) {
                             if (!playersData[pid]) {
-                                playersData[pid] = { name: data.playersData[pid].name, rol: null, habilidad: null, objetos: [] };
+                                playersData[pid] = { name: remoteP.name, rol: null, habilidad: null, objetos: [] };
                             }
-                            playersData[pid].name = data.playersData[pid].name;
-                            playersData[pid].rol = data.playersData[pid].rol || null;
-                            playersData[pid].habilidad = data.playersData[pid].habilidad || null;
-                            playersData[pid].objetos = data.playersData[pid].objetos || [];
+                            playersData[pid].name = remoteP.name;
+                            playersData[pid].rol = remoteP.rol || null;
+                            playersData[pid].habilidad = remoteP.habilidad || null;
+                            playersData[pid].objetos = remoteP.objetos || [];
+                        } else if (rolesAsignados && !miRol && remoteP.rol) {
+                            // AUTO-RECUPERACION: si el juego ya empezo pero yo (por algun
+                            // mensaje perdido) nunca recibi mi rol/habilidad, los recupero
+                            // de la copia que el anfitrion tiene de mi en su ultimo sync.
+                            miRol = remoteP.rol;
+                            if (remoteP.habilidad) {
+                                var yaTengoHabilidad = misCartas.some(function(c) {
+                                    return c.tipo === 'habilidad';
+                                });
+                                if (!yaTengoHabilidad) {
+                                    miHabilidad = remoteP.habilidad;
+                                    misCartas.push({
+                                        id: 'hab-' + Date.now() + '-' + Math.random(),
+                                        numero: remoteP.habilidad.numero,
+                                        imagen: remoteP.habilidad.imagen,
+                                        tipo: 'habilidad',
+                                        esMia: true
+                                    });
+                                }
+                            }
+                            if (playersData[myId]) {
+                                playersData[myId].rol = miRol;
+                                playersData[myId].habilidad = miHabilidad;
+                            }
                         }
                     }
                 }
                 actualizarUI();
                 saveSession();
+                return;
             }
 
             if (data.action === 'request_state') {
                 broadcastState('sync');
+                if (typeof window.broadcastSincronizarTiempo === 'function') {
+                    window.broadcastSincronizarTiempo();
+                }
+                return;
             }
 
             if (data.action === 'join' || data.action === 'sync') {
@@ -472,10 +530,62 @@ function connectToRoom(code, isReconnect) {
                         }
                     }
                 }
+                return;
             }
 
-        } catch(e) { 
-            console.error('Mensaje invalido', e); 
+            // === NUEVOS HANDLERS PARA PUNTOS ===
+            if (data.action === 'punto_consumido') {
+                if (typeof window.recibirPuntoConsumido === 'function') {
+                    window.recibirPuntoConsumido(data);
+                }
+                return;
+            }
+
+            if (data.action === 'puntos_reset') {
+                if (typeof window.recibirPuntosReset === 'function') {
+                    window.recibirPuntosReset(data);
+                }
+                return;
+            }
+
+            // === HANDLERS PARA EL TEMPORIZADOR (faltaban - causaban que el tiempo no corriera para todos) ===
+            if (data.action === 'tiempo_inicio') {
+                if (typeof window.recibirTiempoInicio === 'function') {
+                    window.recibirTiempoInicio(data);
+                }
+                return;
+            }
+
+            if (data.action === 'tiempo_pausa') {
+                if (typeof window.recibirTiempoPausa === 'function') {
+                    window.recibirTiempoPausa(data);
+                }
+                return;
+            }
+
+            if (data.action === 'tiempo_reanudar') {
+                if (typeof window.recibirTiempoReanudar === 'function') {
+                    window.recibirTiempoReanudar(data);
+                }
+                return;
+            }
+
+            if (data.action === 'tiempo_terminado') {
+                if (typeof window.recibirTiempoTerminado === 'function') {
+                    window.recibirTiempoTerminado(data);
+                }
+                return;
+            }
+
+            if (data.action === 'tiempo_sync') {
+                if (typeof window.recibirTiempoSync === 'function') {
+                    window.recibirTiempoSync(data);
+                }
+                return;
+            }
+
+        } catch (e) {
+            console.error('Error procesando mensaje MQTT', e);
         }
     });
 
@@ -609,7 +719,6 @@ function handleRemovedFromRoom() {
     objetosRestantes = 0;
     hostId = null;
 
-    renderizarCartas();
     renderizarMisCartas();
     actualizarUI();
     renderLeaderboard();

@@ -128,7 +128,6 @@ function reconnectToSession() {
     if (session.playersData) {
         playersData = session.playersData;
     }
-    renderizarCartas();
     renderizarMisCartas();
     actualizarUI();
     connectToRoom(session.roomCode, true);
