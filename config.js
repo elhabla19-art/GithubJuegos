@@ -74,6 +74,13 @@ const Config = {
                 ruta: './YatziDados/index.html',
                 color: '#f5deb2',
                 topics: ['mqtt', 'dados']
+            },
+            {
+                id: 'EcoTrole',
+                nombre: 'EcoTrole',
+                ruta: './EcoTrole/index.html',
+                color: '#f5deb2',
+                topics: ['mqtt', 'dados', 'cartas']
             }
         ];
     },

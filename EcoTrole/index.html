@@ -1,0 +1,164 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EcoTrole</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="favicon.ico">
+    
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+    <!-- LOBBY PRINCIPAL -->
+    <div id="lobbyModal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>EcoTrole</h2>
+            <p>Juego de Roles</p>
+
+            <div id="sessionBanner" class="session-banner" style="display: none;">
+                <p id="sessionBannerText" class="session-banner-text"></p>
+            </div>
+
+            <div id="urlDataDisplay" class="url-data-display" style="display: none; background: #2a2a4a; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--color-secondary);">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                    <span id="urlPlayerName">---</span>
+                    <span id="urlRoomCode">---</span>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-primary" onclick="entrarSala()" style="flex: 1;">Entrar</button>
+                    <button id="reconnectBtn" class="modal-btn btn-outline" onclick="reconnectToSession()" disabled style="flex: 1;">Reconectar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CARGANDO -->
+    <div id="loadingModal" class="modal-overlay">
+        <div class="modal-box" style="background: transparent; border: none; box-shadow: none;">
+            <h2 id="loadingText">Conectando...</h2>
+        </div>
+    </div>
+
+    <!-- RECLAMO DE NOMBRE (RECONEXION DESDE OTRO DISPOSITIVO) -->
+    <div id="claimModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Jugador existente</h3>
+            <p id="claimText">Ya hay un jugador con este nombre en la sala.</p>
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-outline" onclick="declineClaim()">No, soy otro jugador</button>
+                    <button class="modal-btn btn-primary" onclick="acceptClaim()">Si, soy yo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AVISO GENERAL -->
+    <div id="noticeModal" class="modal-overlay" style="display: none;" onclick="closeNotice()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="noticeTitle">Aviso</h3>
+            <p id="noticeText">-</p>
+            <button class="modal-btn btn-primary" onclick="closeNotice()">Entendido</button>
+        </div>
+    </div>
+
+    <!-- REINICIAR PARTIDA (SOLO ANFITRION) -->
+    <div id="resetGameModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h3>Reiniciar partida</h3>
+            <p>Esto reiniciara TODOS los roles y objetos de la partida.</p>
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-outline" onclick="closeResetGameModal()">Cancelar</button>
+                    <button class="modal-btn btn-danger" onclick="confirmResetGlobalGame()">Reiniciar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ELIMINAR JUGADOR (SOLO ANFITRION) -->
+    <div id="removePlayerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h3>Eliminar jugador</h3>
+            <p id="removePlayerText">¿Seguro que quieres eliminar a este jugador de la sala?</p>
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-outline" onclick="closeRemovePlayerModal()">Cancelar</button>
+                    <button class="modal-btn btn-danger" onclick="confirmRemovePlayer()">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ZOOM -->
+    <div id="zoomModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box zoom-box">
+            <div id="zoomContent" class="zoom-content">
+                <!-- Se llena dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- UI DEL JUEGO -->
+    <header>
+        <h1>EcoTrole</h1>
+        <div id="roomInfoDisplay" class="room-info" style="display: none;"></div>
+    </header>
+
+    <div class="app-container">
+        <!-- AREA DEL TEMPORIZADOR (reemplaza el board-container) -->
+        <div class="timer-container">
+            <div id="timerDisplay" class="timer-display">04:00</div>
+            <div id="timerStatus" class="timer-status">Esperando inicio...</div>
+        </div>
+
+        <div class="side-panel">
+            <div class="game-controls">
+                <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                    <button id="startGameBtn" class="modal-btn btn-primary" onclick="iniciarJuego()" style="flex: 1;">Pasajeros</button>
+                    <button id="objetosBtn" class="modal-btn btn-secondary" onclick="obtenerObjeto()" style="flex: 1;">Objetos</button>
+                    <button id="apagonBtn" class="modal-btn btn-outline" onclick="apagon()" style="flex: 1;">Apagon</button>
+                    <button id="resetGameBtn" class="modal-btn btn-danger" onclick="resetGlobalGame()" style="flex: 1;">Reiniciar</button>
+                </div>
+                
+                <!-- Area MIS CARTAS -->
+                <div class="my-cards-section">
+                    <h4>Mis Cartas</h4>
+                    <div id="my-cards-container" class="my-cards-container">
+                        <!-- Se llena dinamicamente -->
+                    </div>
+                    
+                    <!-- Rol del jugador -->
+                    <div id="miRolDisplay" style="text-align:center; font-size:1.2rem; font-weight:bold; margin:8px 0;">Rol: ?</div>
+                    <div id="mazoRestanteDisplay" style="text-align:center; font-size:0.9rem; color: var(--text-muted); margin: -4px 0 8px 0;">Objetos restantes: 54</div>
+                </div>
+            </div>
+
+            <!-- Tabla de jugadores -->
+            <div class="leaderboard" id="leaderboardPanel">
+                <h3>Jugadores</h3>
+                <div id="playersList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/tiempo.js"></script>
+    <script src="js/juego.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/leaderboard.js"></script>
+    <script src="js/zoom.js"></script>
+    <script src="js/modales.js"></script>
+    <script src="sesion.js"></script>
+    <script src="mqtt.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
