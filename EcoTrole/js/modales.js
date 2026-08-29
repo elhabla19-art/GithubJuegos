@@ -46,14 +46,18 @@ function acceptClaim() {
 
     myId = pendingClaim.oldId;
     misCartas = pendingClaim.cartas || [];
+    miRol = pendingClaim.rol || null;
+    miHabilidad = pendingClaim.habilidad || null;
+    misItems = pendingClaim.items || [];
 
     if (!playersData[myId]) {
-        playersData[myId] = { name: myName, rol: null, habilidad: null, objetos: [] };
+        playersData[myId] = { name: myName, rol: null, habilidad: null, items: [], acciones: [] };
     }
     playersData[myId].name = myName;
     playersData[myId].rol = pendingClaim.rol || null;
     playersData[myId].habilidad = pendingClaim.habilidad || null;
-    playersData[myId].objetos = pendingClaim.objetos || [];
+    playersData[myId].items = pendingClaim.items || [];
+    playersData[myId].acciones = pendingClaim.acciones || [];
 
     document.getElementById('claimModal').style.display = 'none';
     pendingClaim = null;

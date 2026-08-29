@@ -1,12 +1,16 @@
 // juego.js - EcoTrole
 var cartas = [];
 var misCartas = [];
+var misItems = []; // ['reloj', 'celular', 'billetera'] - se entregan fijos al repartir roles
 var ROLES = {
     PASAJERO: 'pasajero',
     LADRON: 'ladron'
 };
-var TOTAL_HABILIDADES = 12;
-var TOTAL_OBJETOS = 54;
+var TOTAL_HABILIDADES = 10;
+var TOTAL_ACCIONES = 30;
+var CARTAS_ACCION_INICIALES = 3; // cuantas cartas de Accion recibe cada jugador al repartir
+var MAX_CARTAS_ACCION = 3;       // tope de cartas de Accion que se pueden tener en mano
+var ITEMS_FIJOS = ['reloj', 'celular', 'billetera'];
 var juegoIniciado = false;
 var juegoIniciador = null;
 var rolesAsignados = false;
@@ -15,20 +19,34 @@ function getImagenHabilidad(numero) {
     return 'imagenes/Habilidad_' + numero + '.png';
 }
 
-function getImagenObjeto(numero) {
-    return 'imagenes/Juego_' + numero + '.png';
+function getImagenAccion(numero) {
+    return 'imagenes/Accion_' + numero + '.png';
 }
 
 function getTipoCarta(numero, tipo) {
     if (tipo === 'habilidad') return 'habilidad';
-    if (tipo === 'objeto') return 'objeto';
+    if (tipo === 'accion') return 'accion';
     return 'desconocido';
 }
 
 function getPrefijoCarta(numero, tipo) {
     if (tipo === 'habilidad') return 'HAB';
-    if (tipo === 'objeto') return 'OBJ';
+    if (tipo === 'accion') return 'ACC';
     return '??';
+}
+
+function contarMisCartasAccion() {
+    return misCartas.filter(function(c) { return c.tipo === 'accion'; }).length;
+}
+
+function barajar(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+    }
+    return arr;
 }
 
 function iniciarJuego() {
@@ -48,41 +66,37 @@ function iniciarJuego() {
         return;
     }
 
-    var mazoHabilidades = [];
-    for (var i = 1; i <= TOTAL_HABILIDADES; i++) {
-        mazoHabilidades.push(i);
-    }
-    for (var i = mazoHabilidades.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var temp = mazoHabilidades[i];
-        mazoHabilidades[i] = mazoHabilidades[j];
-        mazoHabilidades[j] = temp;
-    }
+    var mazoHabilidades = barajar((function() {
+        var arr = [];
+        for (var i = 1; i <= TOTAL_HABILIDADES; i++) arr.push(i);
+        return arr;
+    })());
+
+    var mazoAcciones = barajar((function() {
+        var arr = [];
+        for (var i = 1; i <= TOTAL_ACCIONES; i++) arr.push(i);
+        return arr;
+    })());
 
     var jugadores = Object.keys(playersData);
-    var habilidadesPorJugador = {};
 
     var numLadrones = Math.max(1, Math.floor(jugadores.length / 3));
     if (numLadrones > jugadores.length - 1) numLadrones = jugadores.length - 1;
-    
-    var jugadoresMezclados = jugadores.slice();
-    for (var i = jugadoresMezclados.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var temp = jugadoresMezclados[i];
-        jugadoresMezclados[i] = jugadoresMezclados[j];
-        jugadoresMezclados[j] = temp;
-    }
+
+    var jugadoresMezclados = barajar(jugadores.slice());
 
     var rolAsignado = {};
+    var habilidadesPorJugador = {};
+    var accionesPorJugador = {};
     var indiceHabilidad = 0;
+
     for (var i = 0; i < jugadoresMezclados.length; i++) {
         var id = jugadoresMezclados[i];
-        if (i < numLadrones) {
-            rolAsignado[id] = ROLES.LADRON;
-        } else {
-            rolAsignado[id] = ROLES.PASAJERO;
-        }
-        
+
+        // --- Rol ---
+        rolAsignado[id] = (i < numLadrones) ? ROLES.LADRON : ROLES.PASAJERO;
+
+        // --- Habilidad (1 por jugador mientras alcance el mazo) ---
         if (indiceHabilidad < mazoHabilidades.length) {
             var numHabilidad = mazoHabilidades[indiceHabilidad];
             habilidadesPorJugador[id] = {
@@ -92,48 +106,48 @@ function iniciarJuego() {
             };
             indiceHabilidad++;
         }
-    }
 
-    var mazoObjetos = [];
-    for (var i = 1; i <= TOTAL_OBJETOS; i++) {
-        mazoObjetos.push(i);
-    }
-    for (var i = mazoObjetos.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var temp = mazoObjetos[i];
-        mazoObjetos[i] = mazoObjetos[j];
-        mazoObjetos[j] = temp;
+        // --- Cartas de Accion iniciales (3 por jugador mientras alcance el mazo) ---
+        var misNumsAccion = [];
+        for (var k = 0; k < CARTAS_ACCION_INICIALES; k++) {
+            if (mazoAcciones.length === 0) break;
+            misNumsAccion.push(mazoAcciones.shift());
+        }
+        accionesPorJugador[id] = misNumsAccion;
     }
 
     juegoIniciado = true;
     juegoIniciador = myId;
     rolesAsignados = true;
-    mazoObjetosRestantes = mazoObjetos;
-    objetosRestantes = mazoObjetos.length;
+    mazoAccionesRestantes = mazoAcciones;
+    accionesRestantes = mazoAcciones.length;
 
-    broadcastStartGame(rolAsignado, habilidadesPorJugador, mazoObjetos);
-    
-    aplicarRolesLocales(rolAsignado, habilidadesPorJugador);
-    
+    broadcastStartGame(rolAsignado, habilidadesPorJugador, accionesPorJugador, mazoAcciones);
+
+    aplicarRolesLocales(rolAsignado, habilidadesPorJugador, accionesPorJugador);
+
     renderizarMisCartas();
     actualizarUI();
     saveSession();
 }
 
-var mazoObjetosRestantes = [];
-var objetosRestantes = TOTAL_OBJETOS;
+var mazoAccionesRestantes = [];
+var accionesRestantes = TOTAL_ACCIONES;
 
-function aplicarRolesLocales(roles, habilidades) {
+function aplicarRolesLocales(roles, habilidades, acciones) {
     for (var id in roles) {
         if (!playersData[id]) continue;
         playersData[id].rol = roles[id];
         playersData[id].habilidad = habilidades[id] || null;
-        playersData[id].objetos = playersData[id].objetos || [];
-        
+        playersData[id].items = ITEMS_FIJOS.slice();
+        playersData[id].acciones = playersData[id].acciones || [];
+
         if (id === myId) {
             miRol = roles[id];
             miHabilidad = habilidades[id] || null;
+            misItems = ITEMS_FIJOS.slice();
             misCartas = [];
+
             if (miHabilidad) {
                 misCartas.push({
                     id: 'hab-' + Date.now() + '-' + Math.random(),
@@ -143,13 +157,31 @@ function aplicarRolesLocales(roles, habilidades) {
                     esMia: true
                 });
             }
+
+            var misNumsAccion = (acciones && acciones[id]) || [];
+            var idsAccion = [];
+            for (var a = 0; a < misNumsAccion.length; a++) {
+                var numAccion = misNumsAccion[a];
+                var cartaAccion = {
+                    id: 'acc-' + Date.now() + '-' + Math.random() + '-' + a,
+                    numero: numAccion,
+                    imagen: getImagenAccion(numAccion),
+                    tipo: 'accion',
+                    esMia: true
+                };
+                misCartas.push(cartaAccion);
+                idsAccion.push(cartaAccion.id);
+            }
+            playersData[id].acciones = idsAccion;
         }
     }
     renderizarMisCartas();
     renderLeaderboard();
 }
 
-function obtenerObjeto() {
+// Se presiona "Accion": mientras tenga menos de MAX_CARTAS_ACCION, puede seguir
+// presionando para ir completando su mano hasta llegar a 3.
+function obtenerAccion() {
     if (!juegoIniciado) {
         showNotice('Primero debes repartir los roles con "Pasajeros".');
         return;
@@ -160,29 +192,64 @@ function obtenerObjeto() {
         return;
     }
 
-    if (mazoObjetosRestantes.length === 0) {
-        showNotice('No quedan objetos en el mazo.');
+    if (contarMisCartasAccion() >= MAX_CARTAS_ACCION) {
+        showNotice('Ya tienes el maximo de ' + MAX_CARTAS_ACCION + ' cartas de Accion.');
         return;
     }
 
-    var numObjeto = mazoObjetosRestantes.shift();
-    objetosRestantes = mazoObjetosRestantes.length;
+    if (mazoAccionesRestantes.length === 0) {
+        showNotice('No quedan cartas de Accion en el mazo.');
+        return;
+    }
 
-    var cartaObjeto = {
-        id: 'obj-' + Date.now() + '-' + Math.random(),
-        numero: numObjeto,
-        imagen: getImagenObjeto(numObjeto),
-        tipo: 'objeto',
+    var numAccion = mazoAccionesRestantes.shift();
+    accionesRestantes = mazoAccionesRestantes.length;
+
+    var cartaAccion = {
+        id: 'acc-' + Date.now() + '-' + Math.random(),
+        numero: numAccion,
+        imagen: getImagenAccion(numAccion),
+        tipo: 'accion',
         esMia: true
     };
 
-    misCartas.push(cartaObjeto);
-    if (!playersData[myId].objetos) {
-        playersData[myId].objetos = [];
+    misCartas.push(cartaAccion);
+    if (!playersData[myId].acciones) {
+        playersData[myId].acciones = [];
     }
-    playersData[myId].objetos.push(cartaObjeto.id);
+    playersData[myId].acciones.push(cartaAccion.id);
 
-    broadcastObjeto(cartaObjeto);
+    broadcastAccionObtenida(cartaAccion);
+
+    renderizarMisCartas();
+    actualizarUI();
+    saveSession();
+}
+
+// Se presiona "Activar" en el zoom de una carta de Accion: la carta se descarta
+// de la mano y su numero regresa al mazo compartido para que cualquiera la pueda sacar de nuevo.
+function activarAccion(cartaId) {
+    var idx = -1;
+    for (var i = 0; i < misCartas.length; i++) {
+        if (misCartas[i].id === cartaId && misCartas[i].tipo === 'accion') {
+            idx = i;
+            break;
+        }
+    }
+    if (idx === -1) return;
+
+    var carta = misCartas[idx];
+    misCartas.splice(idx, 1);
+
+    if (playersData[myId] && playersData[myId].acciones) {
+        var posId = playersData[myId].acciones.indexOf(cartaId);
+        if (posId !== -1) playersData[myId].acciones.splice(posId, 1);
+    }
+
+    mazoAccionesRestantes.push(carta.numero);
+    accionesRestantes = mazoAccionesRestantes.length;
+
+    broadcastAccionActivada(cartaId, carta.numero);
 
     renderizarMisCartas();
     actualizarUI();
@@ -233,30 +300,32 @@ function resetLocalGame() {
     rolesAsignados = false;
     miRol = null;
     miHabilidad = null;
+    misItems = [];
     misCartas = [];
-    mazoObjetosRestantes = [];
-    objetosRestantes = TOTAL_OBJETOS;
-    
+    mazoAccionesRestantes = [];
+    accionesRestantes = TOTAL_ACCIONES;
+
     if (typeof window.reiniciarTemporizador === 'function') {
         window.reiniciarTemporizador();
     }
     if (typeof window.resetearPuntos === 'function') {
         window.resetearPuntos();
     }
-    
+
     for (var id in playersData) {
         playersData[id].rol = null;
         playersData[id].habilidad = null;
-        playersData[id].objetos = [];
+        playersData[id].items = [];
+        playersData[id].acciones = [];
     }
-    
+
     renderizarMisCartas();
     actualizarUI();
     renderLeaderboard();
     saveSession();
 }
 
-function broadcastStartGame(roles, habilidades, mazoObjetos) {
+function broadcastStartGame(roles, habilidades, acciones, mazoAcciones) {
     if (mqttClient && currentRoom) {
         var topic = 'ecotrole/room/' + currentRoom;
         var payload = JSON.stringify({
@@ -265,7 +334,8 @@ function broadcastStartGame(roles, habilidades, mazoObjetos) {
             name: myName,
             roles: roles,
             habilidades: habilidades,
-            mazoObjetos: mazoObjetos,
+            acciones: acciones,
+            mazoAcciones: mazoAcciones,
             hostId: hostId,
             timestamp: Date.now(),
             updatedAt: Date.now()
@@ -274,15 +344,29 @@ function broadcastStartGame(roles, habilidades, mazoObjetos) {
     }
 }
 
-function broadcastObjeto(carta) {
+function broadcastAccionObtenida(carta) {
     if (mqttClient && currentRoom) {
         var topic = 'ecotrole/room/' + currentRoom;
         var payload = JSON.stringify({
-            action: 'objeto',
+            action: 'accion_obtenida',
             id: myId,
             name: myName,
             carta: carta,
-            objetosRestantes: objetosRestantes
+            accionesRestantes: accionesRestantes
+        });
+        mqttClient.publish(topic, payload, { qos: 1 });
+    }
+}
+
+function broadcastAccionActivada(cartaId, numero) {
+    if (mqttClient && currentRoom) {
+        var topic = 'ecotrole/room/' + currentRoom;
+        var payload = JSON.stringify({
+            action: 'accion_activada',
+            id: myId,
+            name: myName,
+            cartaId: cartaId,
+            numero: numero
         });
         mqttClient.publish(topic, payload, { qos: 1 });
     }
@@ -301,13 +385,13 @@ function broadcastReset() {
 }
 
 // NOTA: broadcastState() vive unicamente en mqtt.js (fuente unica de verdad).
-// Antes estaba duplicada aqui con el mismo codigo; se elimino para evitar
-// confusion/mantenimiento en dos lugares.
 
 window.iniciarJuego = iniciarJuego;
-window.obtenerObjeto = obtenerObjeto;
+window.obtenerAccion = obtenerAccion;
+window.activarAccion = activarAccion;
 window.apagon = apagon;
 window.resetLocalGame = resetLocalGame;
 window.broadcastReset = broadcastReset;
 window.broadcastStartGame = broadcastStartGame;
-window.broadcastObjeto = broadcastObjeto;
+window.broadcastAccionObtenida = broadcastAccionObtenida;
+window.broadcastAccionActivada = broadcastAccionActivada;

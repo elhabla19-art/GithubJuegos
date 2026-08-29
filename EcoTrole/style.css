@@ -319,7 +319,7 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .my-card-wrapper.habilidad {
     border-color: var(--color-accent);
 }
-.my-card-wrapper.objeto {
+.my-card-wrapper.accion {
     border-color: var(--color-secondary);
 }
 
@@ -384,7 +384,7 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     background: var(--color-accent);
     color: #0A0B08;
 }
-.tipo-badge.objeto {
+.tipo-badge.accion {
     background: var(--color-secondary);
     color: white;
 }
@@ -407,6 +407,22 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 }
 #miRolDisplay.sin-rol {
     color: var(--text-muted);
+}
+
+/* Badge con los items fijos (Reloj/Celular/Billetera) junto al Rol */
+.item-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 8px;
+    padding: 3px 10px;
+    background: #0A0B08;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: normal;
+    vertical-align: middle;
+    letter-spacing: 1px;
 }
 
 /* --- LEADERBOARD --- */
@@ -573,6 +589,11 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .zoom-content .zoom-info span {
     font-weight: bold;
     color: var(--color-accent);
+}
+
+.zoom-content .zoom-activar-btn {
+    min-width: 160px;
+    flex: none;
 }
 
 /* ============================================ */

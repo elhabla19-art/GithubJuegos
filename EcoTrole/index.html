@@ -75,7 +75,7 @@
     <div id="resetGameModal" class="modal-overlay" style="display: none;">
         <div class="modal-box">
             <h3>Reiniciar partida</h3>
-            <p>Esto reiniciara TODOS los roles y objetos de la partida.</p>
+            <p>Esto reiniciara TODOS los roles, items y cartas de la partida.</p>
             <div class="modal-buttons">
                 <div class="row-btns">
                     <button class="modal-btn btn-outline" onclick="closeResetGameModal()">Cancelar</button>
@@ -131,7 +131,7 @@
             <div class="game-controls">
                 <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
                     <button id="startGameBtn" class="modal-btn btn-primary" onclick="iniciarJuego()" style="flex: 1;">Pasajeros</button>
-                    <button id="objetosBtn" class="modal-btn btn-secondary" onclick="obtenerObjeto()" style="flex: 1;">Objetos</button>
+                    <button id="accionBtn" class="modal-btn btn-secondary" onclick="obtenerAccion()" style="flex: 1;">Accion</button>
                     <button id="apagonBtn" class="modal-btn btn-outline" onclick="apagon()" style="flex: 1;">Apagon</button>
                     <button id="resetGameBtn" class="modal-btn btn-danger" onclick="resetGlobalGame()" style="flex: 1;">Reiniciar</button>
                 </div>
@@ -145,7 +145,7 @@
                     
                     <!-- Rol del jugador -->
                     <div id="miRolDisplay" style="text-align:center; font-size:1.2rem; font-weight:bold; margin:8px 0;">Rol: ?</div>
-                    <div id="mazoRestanteDisplay" style="text-align:center; font-size:0.9rem; color: var(--text-muted); margin: -4px 0 8px 0;">Objetos restantes: 54</div>
+                    <div id="mazoRestanteDisplay" style="text-align:center; font-size:0.9rem; color: var(--text-muted); margin: -4px 0 8px 0;">Acciones restantes: 30</div>
                 </div>
             </div>
 

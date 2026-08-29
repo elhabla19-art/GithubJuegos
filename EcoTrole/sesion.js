@@ -41,13 +41,14 @@ function saveSession() {
             myId: myId,
             myName: myName,
             misCartas: misCartas || [],
+            misItems: misItems || [],
             juegoIniciado: juegoIniciado || false,
             rolesAsignados: rolesAsignados || false,
             miRol: miRol || null,
             miHabilidad: miHabilidad || null,
             playersData: playersData,
-            mazoObjetosRestantes: mazoObjetosRestantes || [],
-            objetosRestantes: objetosRestantes || 0,
+            mazoAccionesRestantes: mazoAccionesRestantes || [],
+            accionesRestantes: accionesRestantes || 0,
             hostId: hostId || null,
             updatedAt: Date.now()
         }));
@@ -65,8 +66,9 @@ function loadSession() {
             rolesAsignados = data.rolesAsignados || false;
             miRol = data.miRol || null;
             miHabilidad = data.miHabilidad || null;
-            mazoObjetosRestantes = data.mazoObjetosRestantes || [];
-            objetosRestantes = data.objetosRestantes || 0;
+            misItems = data.misItems || [];
+            mazoAccionesRestantes = data.mazoAccionesRestantes || [];
+            accionesRestantes = data.accionesRestantes || 0;
             hostId = data.hostId || null;
             if (data.playersData) {
                 playersData = data.playersData;
@@ -122,8 +124,9 @@ function reconnectToSession() {
     rolesAsignados = session.rolesAsignados || false;
     miRol = session.miRol || null;
     miHabilidad = session.miHabilidad || null;
-    mazoObjetosRestantes = session.mazoObjetosRestantes || [];
-    objetosRestantes = session.objetosRestantes || 0;
+    misItems = session.misItems || [];
+    mazoAccionesRestantes = session.mazoAccionesRestantes || [];
+    accionesRestantes = session.accionesRestantes || 0;
     hostId = session.hostId || null;
     if (session.playersData) {
         playersData = session.playersData;

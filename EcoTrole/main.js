@@ -57,8 +57,8 @@ function entrarSala() {
     miRol = null;
     miHabilidad = null;
     misCartas = [];
-    mazoObjetosRestantes = [];
-    objetosRestantes = 0;
+    mazoAccionesRestantes = [];
+    accionesRestantes = 0;
     hostId = null;
     
     var session = loadSession();
@@ -70,8 +70,9 @@ function entrarSala() {
         rolesAsignados = session.rolesAsignados || false;
         miRol = session.miRol || null;
         miHabilidad = session.miHabilidad || null;
-        mazoObjetosRestantes = session.mazoObjetosRestantes || [];
-        objetosRestantes = session.objetosRestantes || 0;
+    misItems = session.misItems || [];
+        mazoAccionesRestantes = session.mazoAccionesRestantes || [];
+        accionesRestantes = session.accionesRestantes || 0;
         hostId = session.hostId || null;
         if (session.playersData) {
             playersData = session.playersData;
@@ -109,8 +110,9 @@ function reconnectToSession() {
     rolesAsignados = session.rolesAsignados || false;
     miRol = session.miRol || null;
     miHabilidad = session.miHabilidad || null;
-    mazoObjetosRestantes = session.mazoObjetosRestantes || [];
-    objetosRestantes = session.objetosRestantes || 0;
+    misItems = session.misItems || [];
+    mazoAccionesRestantes = session.mazoAccionesRestantes || [];
+    accionesRestantes = session.accionesRestantes || 0;
     hostId = session.hostId || null;
     if (session.playersData) {
         playersData = session.playersData;

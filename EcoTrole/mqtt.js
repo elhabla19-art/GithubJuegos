@@ -122,8 +122,9 @@ function connectToRoom(code, isReconnect) {
         miRol = null;
         miHabilidad = null;
         misCartas = [];
-        mazoObjetosRestantes = [];
-        objetosRestantes = 0;
+        misItems = [];
+        mazoAccionesRestantes = [];
+        accionesRestantes = 0;
         hostId = null;
     }
 
@@ -177,7 +178,8 @@ function connectToRoom(code, isReconnect) {
                 name: myName,
                 rol: null,
                 habilidad: null,
-                objetos: [],
+                items: [],
+                acciones: [],
                 offline: false
             };
         } else {
@@ -323,7 +325,8 @@ function connectToRoom(code, isReconnect) {
                         name: data.name,
                         rol: data.rol || null,
                         habilidad: data.habilidad || null,
-                        objetos: data.objetos || [],
+                        items: data.items || [],
+                        acciones: data.acciones || [],
                         cartas: data.cartas || []
                     };
                     showClaimModal(pendingClaim);
@@ -338,7 +341,7 @@ function connectToRoom(code, isReconnect) {
 
             if (data.id && data.name && data.action !== 'request_state' && data.action !== 'remove' && data.action !== 'sync') {
                 if (!playersData[data.id]) {
-                    playersData[data.id] = { name: data.name, rol: null, habilidad: null, objetos: [] };
+                    playersData[data.id] = { name: data.name, rol: null, habilidad: null, items: [], acciones: [] };
                 }
                 playersData[data.id].name = data.name;
                 renderLeaderboard();
@@ -381,32 +384,51 @@ function connectToRoom(code, isReconnect) {
 
                 for (var id in data.roles) {
                     if (!playersData[id]) {
-                        playersData[id] = { name: id, rol: null, habilidad: null, objetos: [] };
+                        playersData[id] = { name: id, rol: null, habilidad: null, items: [], acciones: [] };
                     }
                     playersData[id].rol = data.roles[id];
+                    playersData[id].items = ITEMS_FIJOS.slice();
                     if (data.habilidades && data.habilidades[id]) {
                         playersData[id].habilidad = data.habilidades[id];
                     }
 
                     if (id === myId) {
                         miRol = data.roles[id];
-                        if (data.habilidades && data.habilidades[id]) {
-                            miHabilidad = data.habilidades[id];
-                            misCartas = [];
+                        miHabilidad = (data.habilidades && data.habilidades[id]) || null;
+                        misItems = ITEMS_FIJOS.slice();
+                        misCartas = [];
+
+                        if (miHabilidad) {
                             misCartas.push({
                                 id: 'hab-' + Date.now() + '-' + Math.random(),
-                                numero: data.habilidades[id].numero,
-                                imagen: data.habilidades[id].imagen,
+                                numero: miHabilidad.numero,
+                                imagen: miHabilidad.imagen,
                                 tipo: 'habilidad',
                                 esMia: true
                             });
                         }
+
+                        var misNumsAccion = (data.acciones && data.acciones[id]) || [];
+                        var idsAccion = [];
+                        for (var a = 0; a < misNumsAccion.length; a++) {
+                            var numAccion = misNumsAccion[a];
+                            var cartaAccion = {
+                                id: 'acc-' + Date.now() + '-' + Math.random() + '-' + a,
+                                numero: numAccion,
+                                imagen: getImagenAccion(numAccion),
+                                tipo: 'accion',
+                                esMia: true
+                            };
+                            misCartas.push(cartaAccion);
+                            idsAccion.push(cartaAccion.id);
+                        }
+                        playersData[id].acciones = idsAccion;
                     }
                 }
 
-                if (data.mazoObjetos) {
-                    mazoObjetosRestantes = data.mazoObjetos.slice();
-                    objetosRestantes = mazoObjetosRestantes.length;
+                if (data.mazoAcciones) {
+                    mazoAccionesRestantes = data.mazoAcciones.slice();
+                    accionesRestantes = mazoAccionesRestantes.length;
                 }
 
                 renderizarMisCartas();
@@ -415,19 +437,46 @@ function connectToRoom(code, isReconnect) {
                 return;
             }
 
-            if (data.action === 'objeto') {
+            if (data.action === 'accion_obtenida') {
                 if (data.id === myId) {
                     // Ya se procesó localmente
                 } else {
                     if (playersData[data.id]) {
-                        if (!playersData[data.id].objetos) {
-                            playersData[data.id].objetos = [];
+                        if (!playersData[data.id].acciones) {
+                            playersData[data.id].acciones = [];
                         }
-                        playersData[data.id].objetos.push(data.carta.id);
+                        playersData[data.id].acciones.push(data.carta.id);
                     }
-                    if (data.objetosRestantes !== undefined) {
-                        objetosRestantes = data.objetosRestantes;
+                    // Quitamos exactamente ese numero de nuestra copia local del mazo
+                    // compartido, para que todos vean el mismo mazo restante.
+                    if (data.carta && typeof data.carta.numero === 'number') {
+                        var posNum = mazoAccionesRestantes.indexOf(data.carta.numero);
+                        if (posNum !== -1) mazoAccionesRestantes.splice(posNum, 1);
                     }
+                    if (data.accionesRestantes !== undefined) {
+                        accionesRestantes = data.accionesRestantes;
+                    } else {
+                        accionesRestantes = mazoAccionesRestantes.length;
+                    }
+                }
+                renderLeaderboard();
+                actualizarUI();
+                saveSession();
+                return;
+            }
+
+            if (data.action === 'accion_activada') {
+                if (data.id === myId) {
+                    // Ya se procesó localmente
+                } else {
+                    if (playersData[data.id] && playersData[data.id].acciones) {
+                        var posId = playersData[data.id].acciones.indexOf(data.cartaId);
+                        if (posId !== -1) playersData[data.id].acciones.splice(posId, 1);
+                    }
+                    if (typeof data.numero === 'number' && mazoAccionesRestantes.indexOf(data.numero) === -1) {
+                        mazoAccionesRestantes.push(data.numero);
+                    }
+                    accionesRestantes = mazoAccionesRestantes.length;
                 }
                 renderLeaderboard();
                 actualizarUI();
@@ -442,11 +491,11 @@ function connectToRoom(code, isReconnect) {
                 if (data.rolesAsignados !== undefined) {
                     rolesAsignados = data.rolesAsignados;
                 }
-                if (data.mazoObjetosRestantes !== undefined) {
-                    mazoObjetosRestantes = data.mazoObjetosRestantes;
+                if (data.mazoAccionesRestantes !== undefined) {
+                    mazoAccionesRestantes = data.mazoAccionesRestantes;
                 }
-                if (data.objetosRestantes !== undefined) {
-                    objetosRestantes = data.objetosRestantes;
+                if (data.accionesRestantes !== undefined) {
+                    accionesRestantes = data.accionesRestantes;
                 }
                 if (data.hostId !== undefined) {
                     hostId = data.hostId;
@@ -456,17 +505,19 @@ function connectToRoom(code, isReconnect) {
                         var remoteP = data.playersData[pid];
                         if (pid !== myId) {
                             if (!playersData[pid]) {
-                                playersData[pid] = { name: remoteP.name, rol: null, habilidad: null, objetos: [] };
+                                playersData[pid] = { name: remoteP.name, rol: null, habilidad: null, items: [], acciones: [] };
                             }
                             playersData[pid].name = remoteP.name;
                             playersData[pid].rol = remoteP.rol || null;
                             playersData[pid].habilidad = remoteP.habilidad || null;
-                            playersData[pid].objetos = remoteP.objetos || [];
+                            playersData[pid].items = remoteP.items || [];
+                            playersData[pid].acciones = remoteP.acciones || [];
                         } else if (rolesAsignados && !miRol && remoteP.rol) {
                             // AUTO-RECUPERACION: si el juego ya empezo pero yo (por algun
-                            // mensaje perdido) nunca recibi mi rol/habilidad, los recupero
+                            // mensaje perdido) nunca recibi mi rol/habilidad/items, los recupero
                             // de la copia que el anfitrion tiene de mi en su ultimo sync.
                             miRol = remoteP.rol;
+                            misItems = (remoteP.items && remoteP.items.length) ? remoteP.items.slice() : ITEMS_FIJOS.slice();
                             if (remoteP.habilidad) {
                                 var yaTengoHabilidad = misCartas.some(function(c) {
                                     return c.tipo === 'habilidad';
@@ -485,6 +536,7 @@ function connectToRoom(code, isReconnect) {
                             if (playersData[myId]) {
                                 playersData[myId].rol = miRol;
                                 playersData[myId].habilidad = miHabilidad;
+                                playersData[myId].items = misItems;
                             }
                         }
                     }
@@ -509,7 +561,8 @@ function connectToRoom(code, isReconnect) {
                         name: data.name,
                         rol: null,
                         habilidad: null,
-                        objetos: []
+                        items: [],
+                        acciones: []
                     };
                 } else {
                     playersData[data.id].name = data.name;
@@ -630,8 +683,8 @@ function broadcastState(action) {
             playersData: playersData,
             juegoIniciado: juegoIniciado,
             rolesAsignados: rolesAsignados,
-            mazoObjetosRestantes: mazoObjetosRestantes,
-            objetosRestantes: objetosRestantes,
+            mazoAccionesRestantes: mazoAccionesRestantes,
+            accionesRestantes: accionesRestantes,
             hostId: hostId || null,
             updatedAt: Date.now()
         });
@@ -688,7 +741,8 @@ function broadcastClaimOffer(targetId, offeredId) {
             name: cached.name,
             rol: cached.rol || null,
             habilidad: cached.habilidad || null,
-            objetos: cached.objetos || []
+            items: cached.items || [],
+            acciones: cached.acciones || []
         });
         mqttClient.publish(topic, payload, { qos: 1 });
     }
@@ -715,8 +769,9 @@ function handleRemovedFromRoom() {
     miRol = null;
     miHabilidad = null;
     misCartas = [];
-    mazoObjetosRestantes = [];
-    objetosRestantes = 0;
+    misItems = [];
+    mazoAccionesRestantes = [];
+    accionesRestantes = 0;
     hostId = null;
 
     renderizarMisCartas();
