@@ -120,6 +120,7 @@ function iniciarJuego() {
     accionesRestantes = mazoAcciones.length;
 
     if (typeof resetVictoria === 'function') resetVictoria();
+    if (typeof resetRobos === 'function') resetRobos();
 
     aplicarRolesLocales(rolAsignado, habilidadesPorJugador, accionesPorJugador);
 
@@ -327,6 +328,9 @@ function resetLocalGame() {
     }
     if (typeof resetVictoria === 'function') {
         resetVictoria();
+    }
+    if (typeof resetRobos === 'function') {
+        resetRobos();
     }
 
     for (var id in playersData) {

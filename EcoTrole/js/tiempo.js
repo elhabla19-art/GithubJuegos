@@ -148,7 +148,13 @@ function iniciarTemporizador() {
     estadoActual = ESTADO_TEMPORIZADOR.CORRIENDO;
     tiempoInicio = Date.now() - (TIEMPO_TOTAL_SEGUNDOS - tiempoRestante) * 1000;
     tiempoPausadoEn = null;
-    
+
+    // Arranca una ronda nueva del temporizador: le avisamos a robar.js para
+    // que cada jugador libere su bloqueo de robo del Apagon anterior.
+    if (typeof onNuevaRondaTemporizador === 'function') {
+        onNuevaRondaTemporizador();
+    }
+
     if (intervaloGlobal) {
         clearInterval(intervaloGlobal);
     }
@@ -213,6 +219,12 @@ function detenerTemporizador(terminado) {
     }
     
     actualizarDisplay();
+
+    // El "Apagon" ocurrio de verdad (no una pausa): avisamos a robar.js para
+    // que se haga definitiva cualquier pre-seleccion de robo pendiente.
+    if (terminado && typeof onApagonOcurrido === 'function') {
+        onApagonOcurrido();
+    }
 }
 
 function reiniciarTemporizador() {

@@ -226,6 +226,26 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     box-shadow: 0 0 12px rgba(222, 63, 42, 0.5);
 }
 
+/* ROBOS (Reloj/Celular/Billetera) */
+.robados-display {
+    margin-top: 14px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--color-rose);
+    letter-spacing: 0.5px;
+}
+
+.mi-prerobo-indicador {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--color-accent);
+    text-align: center;
+    background: #1a1a2e;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px 12px;
+}
+
 /* --- PANEL LATERAL --- */
 .side-panel { 
     width: 100%; 
@@ -636,6 +656,47 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .zoom-content .zoom-activar-btn {
     min-width: 160px;
     flex: none;
+}
+
+/* --- ZOOM DE JUGADOR: fila de items robables --- */
+.robo-items-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.robo-item-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 1.6rem;
+    border-radius: 12px;
+    background: var(--bg-box);
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.2s, opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.robo-item-btn:not(:disabled):active {
+    transform: scale(0.93);
+}
+.robo-item-btn:disabled {
+    cursor: default;
+    opacity: 0.9;
+}
+.robo-item-btn.robado {
+    opacity: 0.3;
+    filter: grayscale(1);
+}
+.robo-item-btn.seleccionado {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 12px rgba(242, 207, 29, 0.5);
+    background: rgba(242, 207, 29, 0.12);
+}
+.robo-item-btn.apagon-activo {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 12px rgba(222, 63, 42, 0.4);
 }
 
 /* --- MODAL DE DECISION (SOLO ANFITRION) --- */

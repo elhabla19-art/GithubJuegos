@@ -180,6 +180,8 @@ function actualizarUI() {
     renderizarMisCartas();
     if (typeof renderizarDecisionModal === 'function') renderizarDecisionModal();
     if (typeof actualizarBannerVictoria === 'function') actualizarBannerVictoria();
+    if (typeof actualizarContadorRobos === 'function') actualizarContadorRobos();
+    if (typeof actualizarIndicadorPreRobo === 'function') actualizarIndicadorPreRobo();
 }
 
 function showLoading(text) {

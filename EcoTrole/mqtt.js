@@ -396,6 +396,7 @@ function connectToRoom(code, isReconnect) {
                 hostId = data.hostId || hostId;
 
                 if (typeof resetVictoria === 'function') resetVictoria();
+                if (typeof resetRobos === 'function') resetRobos();
 
                 for (var id in data.roles) {
                     if (!playersData[id]) {
@@ -510,6 +511,15 @@ function connectToRoom(code, isReconnect) {
                 return;
             }
 
+            if (data.action === 'robo_ejecutado') {
+                if (data.id === myId) {
+                    // Ya se procesó localmente al presionar el boton.
+                } else if (typeof aplicarRobo === 'function') {
+                    aplicarRobo(data.targetId, data.item);
+                }
+                return;
+            }
+
             if (data.action === 'sync') {
                 if (data.juegoIniciado !== undefined) {
                     juegoIniciado = data.juegoIniciado;
@@ -534,6 +544,12 @@ function connectToRoom(code, isReconnect) {
                 }
                 if (data.motivoVictoria !== undefined) {
                     motivoVictoria = data.motivoVictoria;
+                }
+                if (data.objetosRobados !== undefined && typeof objetosRobados !== 'undefined') {
+                    // Nunca retrocede: si llega un 'sync' viejo/reordenado, no
+                    // queremos que el contador de objetos robados baje.
+                    objetosRobados = Math.max(objetosRobados, data.objetosRobados);
+                    if (typeof actualizarContadorRobos === 'function') actualizarContadorRobos();
                 }
                 if (data.playersData) {
                     for (var pid in data.playersData) {
@@ -741,6 +757,7 @@ function broadcastState(action) {
             juegoTerminado: (typeof juegoTerminado !== 'undefined') ? juegoTerminado : false,
             equipoGanador: (typeof equipoGanador !== 'undefined') ? equipoGanador : null,
             motivoVictoria: (typeof motivoVictoria !== 'undefined') ? motivoVictoria : '',
+            objetosRobados: (typeof objetosRobados !== 'undefined') ? objetosRobados : 0,
             updatedAt: Date.now()
         });
         var opts = { qos: 1 };

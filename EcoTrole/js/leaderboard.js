@@ -43,6 +43,7 @@ function renderLeaderboard() {
             (isMe ? ' me' : '') +
             (isHost ? ' is-host' : '') +
             (player.offline ? ' pc-offline' : '');
+        card.style.cursor = 'pointer';
 
         var badgeHtml = '';
         if (isHost) {
@@ -104,5 +105,13 @@ function renderLeaderboard() {
         }
 
         list.appendChild(card);
+
+        card.addEventListener('click', function(pid) {
+            return function() {
+                if (typeof abrirZoomJugador === 'function') {
+                    abrirZoomJugador(pid);
+                }
+            };
+        }(player.id));
     }
 }

@@ -38,7 +38,7 @@ var ROLES_INFO = {
 // --- Parametros de las condiciones de victoria ---
 var META_PASAJEROS_REQUERIDA = 2;
 var META_LADRONES_REQUERIDA = 1;
-var OBJETOS_ROBADOS_REQUERIDOS = 8; // pendiente: la mecanica de robo aun no esta implementada
+var OBJETOS_ROBADOS_REQUERIDOS = 8; // la mecanica de robo vive en robar.js (variable global objetosRobados)
 
 // --- Estado global de la partida (victoria) ---
 var juegoTerminado = false;
@@ -91,7 +91,13 @@ function evaluarCondicionesVictoria() {
             motivo: ladronesEnMeta + ' ladron(es) cruzaron el tablero.'
         };
     }
-    // (Robo de OBJETOS_ROBADOS_REQUERIDOS objetos: pendiente, aun no hay mecanica de robo)
+    var totalRobados = (typeof objetosRobados !== 'undefined') ? objetosRobados : 0;
+    if (totalRobados >= OBJETOS_ROBADOS_REQUERIDOS) {
+        return {
+            ganador: ROLES.LADRON,
+            motivo: 'Los ladrones robaron ' + totalRobados + ' objetos entre todos.'
+        };
+    }
 
     // --- c) Estorbos ---
     var estorbosTotal = contarPorRol(ROLES.ESTORBO);

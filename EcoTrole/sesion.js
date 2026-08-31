@@ -53,6 +53,9 @@ function saveSession() {
             juegoTerminado: (typeof juegoTerminado !== 'undefined') ? juegoTerminado : false,
             equipoGanador: (typeof equipoGanador !== 'undefined') ? equipoGanador : null,
             motivoVictoria: (typeof motivoVictoria !== 'undefined') ? motivoVictoria : '',
+            objetosRobados: (typeof objetosRobados !== 'undefined') ? objetosRobados : 0,
+            miPreRobo: (typeof miPreRobo !== 'undefined') ? miPreRobo : null,
+            miRoboUsadoEsteApagon: (typeof miRoboUsadoEsteApagon !== 'undefined') ? miRoboUsadoEsteApagon : false,
             updatedAt: Date.now()
         }));
     } catch (e) {
@@ -77,6 +80,11 @@ function loadSession() {
                 juegoTerminado = data.juegoTerminado || false;
                 equipoGanador = data.equipoGanador || null;
                 motivoVictoria = data.motivoVictoria || '';
+            }
+            if (typeof objetosRobados !== 'undefined') {
+                objetosRobados = data.objetosRobados || 0;
+                miPreRobo = data.miPreRobo || null;
+                miRoboUsadoEsteApagon = data.miRoboUsadoEsteApagon || false;
             }
             if (data.playersData) {
                 playersData = data.playersData;
