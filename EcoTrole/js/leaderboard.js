@@ -22,7 +22,9 @@ function renderLeaderboard() {
         playersArr.push({
             id: id,
             name: data.name,
-            offline: !!data.offline
+            offline: !!data.offline,
+            rol: data.rol || null,
+            estadoJuego: data.estadoJuego || null
         });
     }
 
@@ -48,6 +50,19 @@ function renderLeaderboard() {
         }
         if (player.offline) {
             badgeHtml += ' <span class="pc-offline-tag">Desconectado</span>';
+        }
+        // Revelacion de rol: solo se muestra una vez que el jugador llego a la
+        // Meta o fue Expulsado (definido en roles.js / decision del anfitrion).
+        var revelado = player.estadoJuego && player.rol &&
+            typeof ESTADO_JUGADOR !== 'undefined' && player.estadoJuego !== ESTADO_JUGADOR.ACTIVO;
+        if (revelado) {
+            var infoRol = (typeof ROLES_INFO !== 'undefined' && ROLES_INFO[player.rol]) || null;
+            var nombreRol = infoRol ? infoRol.nombre : player.rol;
+            var emojiRol = infoRol ? infoRol.emoji : '';
+            badgeHtml += ' <span class="pc-rol-tag ' + player.rol + '">' + emojiRol + ' ' + nombreRol + '</span>';
+            var esMeta = player.estadoJuego === (typeof ESTADO_JUGADOR !== 'undefined' ? ESTADO_JUGADOR.META : 'meta');
+            badgeHtml += ' <span class="pc-estado-tag ' + player.estadoJuego + '">' +
+                (esMeta ? '🏁 Meta' : '🚫 Expulsado') + '</span>';
         }
 
         var canClaimHostHere = isHost && player.offline && !isMe;

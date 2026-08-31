@@ -124,6 +124,7 @@ function actualizarUI() {
     var startBtn = document.getElementById('startGameBtn');
     if (startBtn) {
         var esAnfitrion = hostId === myId;
+        startBtn.style.display = esAnfitrion ? '' : 'none';
         var puedeRepartir = !rolesAsignados && esAnfitrion;
         startBtn.disabled = !puedeRepartir;
         if (!juegoIniciado) {
@@ -146,6 +147,13 @@ function actualizarUI() {
         resetBtn.style.display = esAnfitrion ? '' : 'none';
     }
 
+    var decisionBtn = document.getElementById('decisionBtn');
+    if (decisionBtn) {
+        var esAnfitrionDecision = hostId === myId;
+        decisionBtn.style.display = esAnfitrionDecision ? '' : 'none';
+        decisionBtn.disabled = !rolesAsignados;
+    }
+
     var rolDisplay = document.getElementById('miRolDisplay');
     if (rolDisplay) {
         if (!miRol) {
@@ -157,6 +165,9 @@ function actualizarUI() {
         } else if (miRol === 'ladron') {
             rolDisplay.innerHTML = 'Rol: Ladron' + renderizarBadgesItems();
             rolDisplay.className = 'rol-ladron';
+        } else if (miRol === 'estorbo') {
+            rolDisplay.innerHTML = 'Rol: Estorbo' + renderizarBadgesItems();
+            rolDisplay.className = 'rol-estorbo';
         }
     }
 
@@ -167,6 +178,8 @@ function actualizarUI() {
 
     renderLeaderboard();
     renderizarMisCartas();
+    if (typeof renderizarDecisionModal === 'function') renderizarDecisionModal();
+    if (typeof actualizarBannerVictoria === 'function') actualizarBannerVictoria();
 }
 
 function showLoading(text) {

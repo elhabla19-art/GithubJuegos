@@ -2,10 +2,7 @@
 var cartas = [];
 var misCartas = [];
 var misItems = []; // ['reloj', 'celular', 'billetera'] - se entregan fijos al repartir roles
-var ROLES = {
-    PASAJERO: 'pasajero',
-    LADRON: 'ladron'
-};
+// NOTA: ROLES, ESTADO_JUGADOR y las condiciones de victoria viven en roles.js
 var TOTAL_HABILIDADES = 10;
 var TOTAL_ACCIONES = 30;
 var CARTAS_ACCION_INICIALES = 3; // cuantas cartas de Accion recibe cada jugador al repartir
@@ -122,9 +119,25 @@ function iniciarJuego() {
     mazoAccionesRestantes = mazoAcciones;
     accionesRestantes = mazoAcciones.length;
 
-    broadcastStartGame(rolAsignado, habilidadesPorJugador, accionesPorJugador, mazoAcciones);
+    if (typeof resetVictoria === 'function') resetVictoria();
 
     aplicarRolesLocales(rolAsignado, habilidadesPorJugador, accionesPorJugador);
+
+    // Foto fija del mazo restante en el momento del reparto: se usa solo para
+    // los mensajes de red (incluidos los reintentos); el mazo "vivo" que se usa
+    // para sacar cartas sigue siendo mazoAccionesRestantes.
+    var mazoAccionesParaEnviar = mazoAcciones.slice();
+
+    broadcastStartGame(rolAsignado, habilidadesPorJugador, accionesPorJugador, mazoAccionesParaEnviar);
+    // Reintentos: el broker publico / la red movil pueden perder el primer
+    // mensaje. Reenviamos el mismo reparto un par de veces mas; los clientes
+    // que ya lo procesaron simplemente lo ignoran (ver guardia en mqtt.js).
+    setTimeout(function() {
+        broadcastStartGame(rolAsignado, habilidadesPorJugador, accionesPorJugador, mazoAccionesParaEnviar);
+    }, 900);
+    setTimeout(function() {
+        broadcastStartGame(rolAsignado, habilidadesPorJugador, accionesPorJugador, mazoAccionesParaEnviar);
+    }, 2200);
 
     renderizarMisCartas();
     actualizarUI();
@@ -141,6 +154,7 @@ function aplicarRolesLocales(roles, habilidades, acciones) {
         playersData[id].habilidad = habilidades[id] || null;
         playersData[id].items = ITEMS_FIJOS.slice();
         playersData[id].acciones = playersData[id].acciones || [];
+        playersData[id].estadoJuego = ESTADO_JUGADOR.ACTIVO;
 
         if (id === myId) {
             miRol = roles[id];
@@ -311,12 +325,16 @@ function resetLocalGame() {
     if (typeof window.resetearPuntos === 'function') {
         window.resetearPuntos();
     }
+    if (typeof resetVictoria === 'function') {
+        resetVictoria();
+    }
 
     for (var id in playersData) {
         playersData[id].rol = null;
         playersData[id].habilidad = null;
         playersData[id].items = [];
         playersData[id].acciones = [];
+        playersData[id].estadoJuego = null;
     }
 
     renderizarMisCartas();

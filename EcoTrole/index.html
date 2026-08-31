@@ -99,6 +99,18 @@
         </div>
     </div>
 
+    <!-- DECISION DE JUGADORES (SOLO ANFITRION): Meta / Expulsar -->
+    <div id="decisionModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box decision-box">
+            <h3>Decision</h3>
+            <p>Marca el destino de cada jugador cuando cruce el tablero o sea expulsado.</p>
+            <div id="decisionPlayersList" class="decision-players-list"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-outline" onclick="closeDecisionModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DE ZOOM -->
     <div id="zoomModal" class="modal-overlay" style="display: none;">
         <div class="modal-box zoom-box">
@@ -113,6 +125,8 @@
         <h1>EcoTrole</h1>
         <div id="roomInfoDisplay" class="room-info" style="display: none;"></div>
     </header>
+
+    <div id="victoryBanner" class="victory-banner"></div>
 
     <div class="app-container">
         <!-- AREA DEL TEMPORIZADOR -->
@@ -133,6 +147,7 @@
                     <button id="startGameBtn" class="modal-btn btn-primary" onclick="iniciarJuego()" style="flex: 1;">Pasajeros</button>
                     <button id="accionBtn" class="modal-btn btn-secondary" onclick="obtenerAccion()" style="flex: 1;">Accion</button>
                     <button id="apagonBtn" class="modal-btn btn-outline" onclick="apagon()" style="flex: 1;">Apagon</button>
+                    <button id="decisionBtn" class="modal-btn btn-outline" onclick="abrirDecisionModal()" style="flex: 1;">Decision</button>
                     <button id="resetGameBtn" class="modal-btn btn-danger" onclick="resetGlobalGame()" style="flex: 1;">Reiniciar</button>
                 </div>
                 
@@ -157,6 +172,7 @@
         </div>
     </div>
 
+    <script src="js/roles.js"></script>
     <script src="js/tiempo.js"></script>
     <script src="js/juego.js"></script>
     <script src="js/ui.js"></script>

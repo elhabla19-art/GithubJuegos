@@ -180,6 +180,7 @@ function connectToRoom(code, isReconnect) {
                 habilidad: null,
                 items: [],
                 acciones: [],
+                estadoJuego: null,
                 offline: false
             };
         } else {
@@ -221,7 +222,9 @@ function connectToRoom(code, isReconnect) {
             if (hostId === myId && currentRoom) {
                 broadcastState('sync');
             }
-        }, 15000);
+        }, 4000); // antes 15000: mas frecuente para que la auto-recuperacion
+                  // (self-heal) actue casi de inmediato si alguien se perdio
+                  // el reparto de roles o una decision.
 
         if (presencePingInterval) clearInterval(presencePingInterval);
         presencePingInterval = setInterval(function() {
@@ -327,6 +330,7 @@ function connectToRoom(code, isReconnect) {
                         habilidad: data.habilidad || null,
                         items: data.items || [],
                         acciones: data.acciones || [],
+                        estadoJuego: data.estadoJuego || null,
                         cartas: data.cartas || []
                     };
                     showClaimModal(pendingClaim);
@@ -341,7 +345,7 @@ function connectToRoom(code, isReconnect) {
 
             if (data.id && data.name && data.action !== 'request_state' && data.action !== 'remove' && data.action !== 'sync') {
                 if (!playersData[data.id]) {
-                    playersData[data.id] = { name: data.name, rol: null, habilidad: null, items: [], acciones: [] };
+                    playersData[data.id] = { name: data.name, rol: null, habilidad: null, items: [], acciones: [], estadoJuego: null };
                 }
                 playersData[data.id].name = data.name;
                 renderLeaderboard();
@@ -377,17 +381,29 @@ function connectToRoom(code, isReconnect) {
             }
 
             if (data.action === 'start_game') {
+                // Guardia anti-duplicados: si ya tengo mi rol para esta partida,
+                // ignoro reprocesar (puede llegar mas de una vez por reintentos
+                // de red o por el eco del propio anfitrion). Reprocesar de nuevo
+                // borraria y regeneraria mis cartas, perdiendo las que haya
+                // dibujado despues del primer reparto.
+                if (rolesAsignados && miRol) {
+                    return;
+                }
+
                 juegoIniciado = true;
                 rolesAsignados = true;
                 juegoIniciador = data.id;
                 hostId = data.hostId || hostId;
 
+                if (typeof resetVictoria === 'function') resetVictoria();
+
                 for (var id in data.roles) {
                     if (!playersData[id]) {
-                        playersData[id] = { name: id, rol: null, habilidad: null, items: [], acciones: [] };
+                        playersData[id] = { name: id, rol: null, habilidad: null, items: [], acciones: [], estadoJuego: null };
                     }
                     playersData[id].rol = data.roles[id];
                     playersData[id].items = ITEMS_FIJOS.slice();
+                    playersData[id].estadoJuego = ESTADO_JUGADOR.ACTIVO;
                     if (data.habilidades && data.habilidades[id]) {
                         playersData[id].habilidad = data.habilidades[id];
                     }
@@ -484,6 +500,16 @@ function connectToRoom(code, isReconnect) {
                 return;
             }
 
+            if (data.action === 'decision') {
+                // Solo el anfitrion genera estas decisiones (Meta / Expulsar).
+                if (data.id === myId) {
+                    // Ya se procesó localmente al presionar el boton.
+                } else if (typeof aplicarDecision === 'function') {
+                    aplicarDecision(data.targetId, data.subAccion);
+                }
+                return;
+            }
+
             if (data.action === 'sync') {
                 if (data.juegoIniciado !== undefined) {
                     juegoIniciado = data.juegoIniciado;
@@ -500,49 +526,74 @@ function connectToRoom(code, isReconnect) {
                 if (data.hostId !== undefined) {
                     hostId = data.hostId;
                 }
+                if (data.juegoTerminado !== undefined) {
+                    juegoTerminado = data.juegoTerminado;
+                }
+                if (data.equipoGanador !== undefined) {
+                    equipoGanador = data.equipoGanador;
+                }
+                if (data.motivoVictoria !== undefined) {
+                    motivoVictoria = data.motivoVictoria;
+                }
                 if (data.playersData) {
                     for (var pid in data.playersData) {
                         var remoteP = data.playersData[pid];
                         if (pid !== myId) {
                             if (!playersData[pid]) {
-                                playersData[pid] = { name: remoteP.name, rol: null, habilidad: null, items: [], acciones: [] };
+                                playersData[pid] = { name: remoteP.name, rol: null, habilidad: null, items: [], acciones: [], estadoJuego: null };
                             }
                             playersData[pid].name = remoteP.name;
                             playersData[pid].rol = remoteP.rol || null;
                             playersData[pid].habilidad = remoteP.habilidad || null;
                             playersData[pid].items = remoteP.items || [];
                             playersData[pid].acciones = remoteP.acciones || [];
-                        } else if (rolesAsignados && !miRol && remoteP.rol) {
-                            // AUTO-RECUPERACION: si el juego ya empezo pero yo (por algun
-                            // mensaje perdido) nunca recibi mi rol/habilidad/items, los recupero
-                            // de la copia que el anfitrion tiene de mi en su ultimo sync.
-                            miRol = remoteP.rol;
-                            misItems = (remoteP.items && remoteP.items.length) ? remoteP.items.slice() : ITEMS_FIJOS.slice();
-                            if (remoteP.habilidad) {
-                                var yaTengoHabilidad = misCartas.some(function(c) {
-                                    return c.tipo === 'habilidad';
-                                });
-                                if (!yaTengoHabilidad) {
-                                    miHabilidad = remoteP.habilidad;
-                                    misCartas.push({
-                                        id: 'hab-' + Date.now() + '-' + Math.random(),
-                                        numero: remoteP.habilidad.numero,
-                                        imagen: remoteP.habilidad.imagen,
-                                        tipo: 'habilidad',
-                                        esMia: true
+                            playersData[pid].estadoJuego = remoteP.estadoJuego || null;
+                        } else {
+                            if (rolesAsignados && !miRol && remoteP.rol) {
+                                // AUTO-RECUPERACION 1: si el juego ya empezo pero yo (por algun
+                                // mensaje perdido) nunca recibi mi rol/habilidad/items, los recupero
+                                // de la copia que el anfitrion tiene de mi en su ultimo sync.
+                                miRol = remoteP.rol;
+                                misItems = (remoteP.items && remoteP.items.length) ? remoteP.items.slice() : ITEMS_FIJOS.slice();
+                                if (remoteP.habilidad) {
+                                    var yaTengoHabilidad = misCartas.some(function(c) {
+                                        return c.tipo === 'habilidad';
                                     });
+                                    if (!yaTengoHabilidad) {
+                                        miHabilidad = remoteP.habilidad;
+                                        misCartas.push({
+                                            id: 'hab-' + Date.now() + '-' + Math.random(),
+                                            numero: remoteP.habilidad.numero,
+                                            imagen: remoteP.habilidad.imagen,
+                                            tipo: 'habilidad',
+                                            esMia: true
+                                        });
+                                    }
+                                }
+                                if (playersData[myId]) {
+                                    playersData[myId].rol = miRol;
+                                    playersData[myId].habilidad = miHabilidad;
+                                    playersData[myId].items = misItems;
                                 }
                             }
-                            if (playersData[myId]) {
+
+                            // AUTO-RECUPERACION 2: el anfitrion ya me marco "Meta" o "Expulsado"
+                            // (con su posible conversion de rol) pero yo nunca recibi ese
+                            // mensaje 'decision'. Lo aplico aqui para no quedar desincronizado.
+                            if (remoteP.estadoJuego && remoteP.estadoJuego !== ESTADO_JUGADOR.ACTIVO &&
+                                playersData[myId] && playersData[myId].estadoJuego !== remoteP.estadoJuego) {
+                                miRol = remoteP.rol || miRol;
                                 playersData[myId].rol = miRol;
-                                playersData[myId].habilidad = miHabilidad;
-                                playersData[myId].items = misItems;
+                                playersData[myId].estadoJuego = remoteP.estadoJuego;
+                                if (typeof revisarVictoria === 'function') revisarVictoria();
                             }
                         }
                     }
                 }
                 actualizarUI();
                 saveSession();
+                if (typeof actualizarBannerVictoria === 'function') actualizarBannerVictoria();
+                if (typeof notificarVictoriaSiCorresponde === 'function') notificarVictoriaSiCorresponde();
                 return;
             }
 
@@ -562,7 +613,8 @@ function connectToRoom(code, isReconnect) {
                         rol: null,
                         habilidad: null,
                         items: [],
-                        acciones: []
+                        acciones: [],
+                        estadoJuego: null
                     };
                 } else {
                     playersData[data.id].name = data.name;
@@ -686,6 +738,9 @@ function broadcastState(action) {
             mazoAccionesRestantes: mazoAccionesRestantes,
             accionesRestantes: accionesRestantes,
             hostId: hostId || null,
+            juegoTerminado: (typeof juegoTerminado !== 'undefined') ? juegoTerminado : false,
+            equipoGanador: (typeof equipoGanador !== 'undefined') ? equipoGanador : null,
+            motivoVictoria: (typeof motivoVictoria !== 'undefined') ? motivoVictoria : '',
             updatedAt: Date.now()
         });
         var opts = { qos: 1 };
@@ -742,7 +797,8 @@ function broadcastClaimOffer(targetId, offeredId) {
             rol: cached.rol || null,
             habilidad: cached.habilidad || null,
             items: cached.items || [],
-            acciones: cached.acciones || []
+            acciones: cached.acciones || [],
+            estadoJuego: cached.estadoJuego || null
         });
         mqttClient.publish(topic, payload, { qos: 1 });
     }

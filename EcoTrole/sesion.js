@@ -50,6 +50,9 @@ function saveSession() {
             mazoAccionesRestantes: mazoAccionesRestantes || [],
             accionesRestantes: accionesRestantes || 0,
             hostId: hostId || null,
+            juegoTerminado: (typeof juegoTerminado !== 'undefined') ? juegoTerminado : false,
+            equipoGanador: (typeof equipoGanador !== 'undefined') ? equipoGanador : null,
+            motivoVictoria: (typeof motivoVictoria !== 'undefined') ? motivoVictoria : '',
             updatedAt: Date.now()
         }));
     } catch (e) {
@@ -70,6 +73,11 @@ function loadSession() {
             mazoAccionesRestantes = data.mazoAccionesRestantes || [];
             accionesRestantes = data.accionesRestantes || 0;
             hostId = data.hostId || null;
+            if (typeof juegoTerminado !== 'undefined') {
+                juegoTerminado = data.juegoTerminado || false;
+                equipoGanador = data.equipoGanador || null;
+                motivoVictoria = data.motivoVictoria || '';
+            }
             if (data.playersData) {
                 playersData = data.playersData;
                 for (var id in playersData) {
