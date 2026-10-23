@@ -187,6 +187,11 @@
             const separator = url.includes('?') ? '&' : '?';
             url += separator + 'nombre=' + encodeURIComponent(nombre) + '&sala=' + codigo;
         }
+
+        if (gameId === 'SugarPow') {
+            const separator = url.includes('?') ? '&' : '?';
+            url += separator + 'nombre=' + encodeURIComponent(nombre) + '&sala=' + codigo;
+        }
         
         window.open(url, '_blank');
     };

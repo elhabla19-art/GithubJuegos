@@ -81,6 +81,13 @@ const Config = {
                 ruta: './EcoTrole/index.html',
                 color: '#f5deb2',
                 topics: ['mqtt', 'dados', 'cartas']
+            },
+            {
+                id: 'SugarPow',
+                nombre: 'SugarPow',
+                ruta: './SugarPow/index.html',
+                color: '#f5deb2',
+                topics: ['mqtt', 'dados', 'cartas']
             }
         ];
     },
