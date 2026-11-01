@@ -75,6 +75,8 @@ function hideLoading() {
 function renderizarMisCorredores() {
     var container = document.getElementById('my-cards-container');
     container.innerHTML = '';
+    var controles = document.getElementById('ordenControles');
+    if (controles) controles.innerHTML = '';
     if (misSelecciones.length === 0) {
         var empty = document.createElement('div');
         empty.className = 'empty-message';
@@ -104,12 +106,19 @@ function renderizarMisCorredores() {
         return;
     }
     var activeId = playersData[myId] ? playersData[myId].activeCardId : null;
+    var faseSeleccionCompleta = (typeof todosLotesCicloCompletos !== 'function') || todosLotesCicloCompletos();
+    var ordenConfirmado = ordenConfirmadoMio();
+    var hayOrden = ordenConfirmado.length > 0;
+    var idsVivas = misCartas.map(function(c) { return c.id; });
+    ordenBorrador = ordenBorrador.filter(function(id) { return idsVivas.indexOf(id) !== -1; });
+    var ordenMostrado = hayOrden ? ordenConfirmado : ordenBorrador;
+
     for (var k = 0; k < misCartas.length; k++) {
         var carta = misCartas[k];
         var esActiva = (activeId === carta.id);
-        var esGanadora = carta.esGanadora || false;
+        var posicion = ordenMostrado.indexOf(carta.id);
         var wrapper = document.createElement('div');
-        wrapper.className = 'my-card-wrapper' + (esActiva ? ' activa' : '') + (esGanadora ? ' ganadora' : '');
+        wrapper.className = 'my-card-wrapper' + (esActiva ? ' activa' : '');
         var imgContainer = document.createElement('div');
         imgContainer.className = 'my-card-img';
         imgContainer.addEventListener('click', function(c) {
@@ -126,38 +135,66 @@ function renderizarMisCorredores() {
         num.className = 'mini-number';
         num.textContent = getEtiquetaCarta(carta.numero);
         imgContainer.appendChild(num);
-        if (esGanadora) {
+        if (posicion !== -1) {
             var badge = document.createElement('div');
-            badge.className = 'ganadora-badge';
-            badge.textContent = 'GANADORA';
+            badge.className = 'orden-badge';
+            badge.textContent = String(posicion + 1);
             imgContainer.appendChild(badge);
         }
         wrapper.appendChild(imgContainer);
-        var btnUsar = document.createElement('button');
-        btnUsar.className = 'btn-sm btn-usar';
-        var faseSeleccionCompleta = (typeof todosLotesCicloCompletos !== 'function') || todosLotesCicloCompletos();
-        if (esActiva) {
-            btnUsar.textContent = 'En uso';
+        var vidaInfo = document.createElement('div');
+        vidaInfo.className = 'mini-vida';
+        vidaInfo.textContent = 'Vida ' + getVidaCarta(carta.numero) + ' \u00b7 ' + getPuntosCarta(carta.numero) + ' pts';
+        wrapper.appendChild(vidaInfo);
+
+        var btnOrden = document.createElement('button');
+        btnOrden.className = 'btn-sm btn-usar';
+        if (hayOrden) {
+            btnOrden.textContent = esActiva ? 'En uso' : (posicion !== -1 ? 'Turno ' + (posicion + 1) : 'Sin orden');
+            btnOrden.disabled = true;
         } else if (!faseSeleccionCompleta) {
-            btnUsar.textContent = 'Espera...';
+            btnOrden.textContent = 'Espera...';
+            btnOrden.disabled = true;
         } else {
-            btnUsar.textContent = 'Usar';
+            btnOrden.textContent = (posicion !== -1) ? 'Quitar' : 'Elegir';
+            btnOrden.addEventListener('click', function(cId) {
+                return function(e) {
+                    e.stopPropagation();
+                    alternarOrdenBorrador(cId);
+                };
+            }(carta.id));
         }
-        if (carta.esGanadora || carta.descartada || esActiva) {
-            btnUsar.disabled = true;
-        } else if (activeId) {
-            btnUsar.disabled = true;
-        } else if (!faseSeleccionCompleta) {
-            btnUsar.disabled = true;
-        }
-        btnUsar.addEventListener('click', function(cId) {
-            return function(e) {
-                e.stopPropagation();
-                setActiveCard(cId);
-            };
-        }(carta.id));
-        wrapper.appendChild(btnUsar);
+        wrapper.appendChild(btnOrden);
         container.appendChild(wrapper);
+    }
+
+    if (controles) {
+        if (hayOrden) {
+            var nota = document.createElement('div');
+            nota.className = 'orden-nota';
+            nota.textContent = 'Orden confirmado: al eliminar tu carta en uso, la siguiente entra sola.';
+            controles.appendChild(nota);
+        } else if (faseSeleccionCompleta) {
+            var ayuda = document.createElement('div');
+            ayuda.className = 'orden-nota';
+            ayuda.textContent = 'Toca tus cartas en el orden en que las jugaras (1 = la primera).';
+            controles.appendChild(ayuda);
+            var fila = document.createElement('div');
+            fila.className = 'orden-botones';
+            var btnReiniciar = document.createElement('button');
+            btnReiniciar.className = 'modal-btn btn-outline';
+            btnReiniciar.textContent = 'Reiniciar';
+            btnReiniciar.disabled = ordenBorrador.length === 0;
+            btnReiniciar.addEventListener('click', reiniciarOrdenBorrador);
+            fila.appendChild(btnReiniciar);
+            var btnConfirmar = document.createElement('button');
+            btnConfirmar.className = 'modal-btn btn-primary';
+            btnConfirmar.textContent = 'Confirmar orden';
+            btnConfirmar.disabled = ordenBorrador.length !== misCartas.length;
+            btnConfirmar.addEventListener('click', confirmarOrden);
+            fila.appendChild(btnConfirmar);
+            controles.appendChild(fila);
+        }
     }
 }
 

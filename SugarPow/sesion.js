@@ -46,7 +46,6 @@ function saveSession() {
             cartas: cartas,
             gameStarted: gameStarted,
             puntosPorJugador: puntosPorJugador,
-            estadoRonda: estadoRonda,
             cartaActivaId: cartaActivaId,
             playersData: playersData,
             tandaActual: tandaActual,
@@ -66,7 +65,6 @@ function loadSession() {
         if (raw) {
             var data = JSON.parse(raw);
             puntosPorJugador = data.puntosPorJugador || {};
-            estadoRonda = data.estadoRonda || { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
             cartaActivaId = data.cartaActivaId || null;
             tandaActual = data.tandaActual !== undefined ? data.tandaActual : -1;
             cicloTandaInicio = data.cicloTandaInicio !== undefined ? data.cicloTandaInicio : 0;
@@ -174,7 +172,6 @@ function reconnectToSession() {
     cartas = session.cartas || [];
     gameStarted = session.gameStarted || false;
     puntosPorJugador = session.puntosPorJugador || {};
-    estadoRonda = session.estadoRonda || { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
     cartaActivaId = session.cartaActivaId || null;
     tandaActual = session.tandaActual !== undefined ? session.tandaActual : -1;
     cicloTandaInicio = session.cicloTandaInicio !== undefined ? session.cicloTandaInicio : 0;

@@ -23,6 +23,11 @@ function abrirZoom(carta, mostrarBoton, soloVisualizacion) {
     info.innerHTML = 'Carta <span>' + getEtiquetaCarta(carta.numero) + '</span>';
     content.appendChild(info);
 
+    var stats = document.createElement('div');
+    stats.className = 'zoom-stats';
+    stats.innerHTML = 'Vida <span>' + getVidaCarta(carta.numero) + '</span> \u00b7 Puntos <span>' + getPuntosCarta(carta.numero) + '</span>';
+    content.appendChild(stats);
+
     if (mostrarBoton && !carta.seleccionadoPor) {
         var btn = document.createElement('button');
         btn.className = 'btn-choose';

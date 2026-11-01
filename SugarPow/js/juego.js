@@ -78,10 +78,6 @@ function seleccionarCarta(cartaId) {
         showNotice('Esta carta ya fue descartada.');
         return;
     }
-    if (carta.esGanadora) {
-        showNotice('Esta carta ya es ganadora.');
-        return;
-    }
     var seleccionadasEnTanda = misSelecciones.filter(function(id) {
         var c = null;
         for (var j = 0; j < cartas.length; j++) {
@@ -90,7 +86,7 @@ function seleccionarCarta(cartaId) {
                 break;
             }
         }
-        return c && c.tanda === tandaActual && !c.descartada && !c.esGanadora;
+        return c && c.tanda === tandaActual && !c.descartada;
     });
     if (seleccionadasEnTanda.length >= MAX_SELECCIONES) {
         showNotice('Ya seleccionaste tus 2 cartas de este lote.');
@@ -153,7 +149,6 @@ function repartirSiguienteLoteAutomatico() {
             imagen: getImagenCarta(numero),
             seleccionadoPor: null,
             seleccionadoPorId: null,
-            esGanadora: false,
             descartada: false,
             tanda: tandaActual
         });
@@ -227,7 +222,11 @@ function iniciarJuego() {
         return;
     }
 
-    estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
+
+    for (var oid in playersData) {
+        if (playersData[oid]) playersData[oid].ordenCartas = [];
+    }
+    ordenBorrador = [];
 
     tandaActual++;
     cicloTandaInicio = tandaActual;
@@ -240,7 +239,6 @@ function iniciarJuego() {
             imagen: getImagenCarta(numero),
             seleccionadoPor: null,
             seleccionadoPorId: null,
-            esGanadora: false,
             descartada: false,
             tanda: tandaActual
         });
@@ -256,114 +254,72 @@ function iniciarJuego() {
 }
 window.iniciarJuego = iniciarJuego;
 
-function setActiveCard(cartaId) {
-    if (!playersData[myId]) {
-        playersData[myId] = { name: myName, selecciones: [], cartasGanadoras: [], activeCardId: null };
-    }
-    var carta = null;
-    for (var i = 0; i < cartas.length; i++) {
-        if (cartas[i].id === cartaId) {
-            carta = cartas[i];
-            break;
-        }
-    }
-    if (!carta || carta.descartada || carta.esGanadora) {
-        showNotice('Esta carta no esta disponible.');
-        return;
-    }
+// ===== ORDEN DE JUEGO DE MIS CARTAS =====
+// En vez de elegir una carta "para usar", cada jugador elige el orden en que
+// jugara sus cartas (borrador local) y lo confirma una sola vez. Despues, al
+// eliminarse su carta en uso, la siguiente del orden entra sola (ver
+// asegurarActivaPorOrden en combate.js).
+var ordenBorrador = [];
 
+function misCartasVivasIds() {
+    return misSelecciones.filter(function(id) {
+        var c = buscarCartaPorId(id);
+        return c && !c.descartada;
+    });
+}
+
+function ordenConfirmadoMio() {
+    var d = playersData[myId];
+    return (d && d.ordenCartas) ? d.ordenCartas.filter(cartaVivaId) : [];
+}
+
+function alternarOrdenBorrador(cartaId) {
     if (typeof todosLotesCicloCompletos === 'function' && !todosLotesCicloCompletos()) {
-        showNotice('Todavia faltan cartas por repartir/escoger. Espera a que todos los jugadores tengan sus 4 cartas antes de usar una.');
+        showNotice('Todavia faltan cartas por repartir/escoger. Espera a que todos los jugadores tengan sus 4 cartas antes de ordenar las tuyas.');
         return;
     }
-
-    var activeActual = playersData[myId].activeCardId;
-    if (activeActual) {
-        if (activeActual !== cartaId) {
-            showNotice('Ya elegiste tu carta para usar esta ronda. No puedes cambiar de carta hasta la proxima ronda.');
-        }
+    if (ordenConfirmadoMio().length > 0) {
+        showNotice('Ya confirmaste el orden de tus cartas.');
         return;
     }
+    var idx = ordenBorrador.indexOf(cartaId);
+    if (idx !== -1) {
+        ordenBorrador.splice(idx, 1);
+    } else {
+        ordenBorrador.push(cartaId);
+    }
+    renderizarMisCorredores();
+}
 
-    playersData[myId].activeCardId = cartaId;
-    broadcastSetActive(myId, cartaId);
+function reiniciarOrdenBorrador() {
+    ordenBorrador = [];
+    renderizarMisCorredores();
+}
+
+function confirmarOrden() {
+    if (!playersData[myId]) return;
+    if (ordenConfirmadoMio().length > 0) return;
+    var vivas = misCartasVivasIds();
+    var orden = ordenBorrador.filter(function(id) { return vivas.indexOf(id) !== -1; });
+    if (vivas.length === 0 || orden.length !== vivas.length) {
+        showNotice('Ordena todas tus cartas antes de confirmar.');
+        return;
+    }
+    playersData[myId].ordenCartas = orden.slice();
+    playersData[myId].activeCardId = orden[0];
+    ordenBorrador = [];
+    broadcastSetActive(myId, orden[0]);
     broadcastState('sync');
     renderizarMisCorredores();
     actualizarUI();
     saveSession();
 }
-window.setActiveCard = setActiveCard;
-
-function aplicarDescarteActivas(ganadorId) {
-    for (var id in playersData) {
-        var data = playersData[id];
-        if (!data) continue;
-        var activeId = data.activeCardId;
-        if (activeId) {
-            for (var i = 0; i < cartas.length; i++) {
-                if (cartas[i].id === activeId) {
-                    cartas[i].descartada = true;
-                    if (id === myId) {
-                        var idx = misSelecciones.indexOf(activeId);
-                        if (idx !== -1) {
-                            misSelecciones.splice(idx, 1);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        data.activeCardId = null;
-        if (id === myId) {
-            data.selecciones = misSelecciones.slice();
-        }
-    }
-
-    renderizarCartas();
-    renderizarMisCorredores();
-    actualizarUI();
-    saveSession();
-}
-window.aplicarDescarteActivas = aplicarDescarteActivas;
-
-function descartarActivas(ganadorId) {
-    aplicarDescarteActivas(ganadorId);
-    broadcastState('sync');
-    setTimeout(function() {
-        broadcastState('sync');
-    }, 700);
-    setTimeout(function() {
-        broadcastState('sync');
-    }, 2000);
-}
-window.descartarActivas = descartarActivas;
-
-function todosEligieronCarta() {
-    for (var id in playersData) {
-        var data = playersData[id];
-        if (!data) continue;
-        var tieneCartas = false;
-        if (data.selecciones) {
-            for (var i = 0; i < data.selecciones.length; i++) {
-                var cId = data.selecciones[i];
-                for (var j = 0; j < cartas.length; j++) {
-                    if (cartas[j].id === cId && !cartas[j].descartada) {
-                        tieneCartas = true;
-                        break;
-                    }
-                }
-                if (tieneCartas) break;
-            }
-        }
-        if (tieneCartas && !data.activeCardId) {
-            return false;
-        }
-    }
-    return true;
-}
-window.todosEligieronCarta = todosEligieronCarta;
+window.alternarOrdenBorrador = alternarOrdenBorrador;
+window.reiniciarOrdenBorrador = reiniciarOrdenBorrador;
+window.confirmarOrden = confirmarOrden;
 
 function actualizarUI() {
+    if (typeof recalcularPuntos === 'function') recalcularPuntos();
     var startBtn = document.getElementById('startGameBtn');
     if (startBtn) {
         var puedeRepartir = !gameStarted || (typeof cicloTerminado === 'function' && cicloTerminado());
@@ -384,6 +340,10 @@ function actualizarUI() {
     if (restantesDisplay) {
         restantesDisplay.textContent = 'Restantes: ' + (mazoRestante ? mazoRestante.length : 0);
     }
+    var eliminarBtn = document.getElementById('eliminarCartaBtn');
+    if (eliminarBtn) {
+        eliminarBtn.style.display = (hostId === myId) ? '' : 'none';
+    }
     var resetBtn = document.getElementById('resetGameBtn');
     if (resetBtn) {
         var esAnfitrion = hostId === myId;
@@ -391,9 +351,6 @@ function actualizarUI() {
     }
     renderLeaderboard();
     renderizarMisCorredores();
-    if (typeof actualizarBotonesGlobales === 'function') {
-        actualizarBotonesGlobales();
-    }
 
     var juegoTerminado = false;
     if (gameStarted) {
@@ -427,10 +384,6 @@ function actualizarUI() {
     }
 
     if (juegoTerminado) {
-        var btns = document.querySelectorAll('.btn-puntaje');
-        for (var b = 0; b < btns.length; b++) {
-            btns[b].disabled = true;
-        }
         var list = document.getElementById('playersList');
         if (list) {
             var msg = document.createElement('div');
@@ -458,14 +411,15 @@ function resetLocalGame() {
     cartas = [];
     misSelecciones = [];
     puntosPorJugador = {};
-    estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
     cartaActivaId = null;
     tandaActual = -1;
     cicloTandaInicio = 0;
     mazoRestante = [];
     gameStarted = false;
     gameInitiator = null;
+    ordenBorrador = [];
     for (var id in playersData) {
+        playersData[id].ordenCartas = [];
         playersData[id].selecciones = [];
         playersData[id].cartasGanadoras = [];
         playersData[id].activeCardId = null;
@@ -478,18 +432,3 @@ function resetLocalGame() {
     saveSession();
 }
 window.resetLocalGame = resetLocalGame;
-
-function resetRound() {
-    for (var id in playersData) {
-        if (playersData[id]) {
-            playersData[id].activeCardId = null;
-        }
-    }
-    estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
-    cartaActivaId = null;
-    broadcastState('sync');
-    renderizarMisCorredores();
-    actualizarUI();
-    saveSession();
-}
-window.resetRound = resetRound;

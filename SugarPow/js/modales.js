@@ -207,44 +207,160 @@ function confirmRemovePlayer() {
 
 // ===== 4. MODALES DE JUEGO =====
 
-// 4. Ganadores
-function mostrarGanadores() {
-    var ganadoras = cartas.filter(function(c) { return c.esGanadora; });
-    if (ganadoras.length === 0) {
-        showNotice('No hay cartas ganadoras aun.');
+// 3c. Eliminar carta (solo anfitrion): registrar quien elimino a quien
+var elimVictimaId = null;   // id del jugador cuya carta en uso fue eliminada
+var elimKillerId = null;    // id del jugador que dio el ultimo golpe
+
+function cartaEnUsoDe(pid) {
+    var d = playersData[pid];
+    if (!d || !d.activeCardId) return null;
+    var c = buscarCartaPorId(d.activeCardId);
+    return (c && !c.descartada) ? c : null;
+}
+
+function abrirEliminarModal() {
+    if (hostId !== myId) {
+        showNotice(hostId ? 'Solo el anfitrion de la sala puede eliminar cartas.' : 'Todavia no hay un anfitrion asignado en la sala. Espera un momento e intenta de nuevo.');
+        return;
+    }
+    var modal = document.getElementById('eliminarModal');
+    if (!modal) {
+        showNotice('No se pudo abrir el dialogo de eliminar carta.');
+        return;
+    }
+    elimVictimaId = null;
+    elimKillerId = null;
+    renderEliminarModal();
+    modal.style.display = 'flex';
+}
+
+function cerrarEliminarModal() {
+    var modal = document.getElementById('eliminarModal');
+    if (modal) modal.style.display = 'none';
+    elimVictimaId = null;
+    elimKillerId = null;
+}
+
+function renderEliminarModal() {
+    var cVic = document.getElementById('elimVictimas');
+    var cKil = document.getElementById('elimKillers');
+    var resumen = document.getElementById('elimResumen');
+    var btn = document.getElementById('elimConfirmBtn');
+    if (!cVic || !cKil) return;
+    cVic.innerHTML = '';
+    cKil.innerHTML = '';
+
+    var ids = Object.keys(playersData).filter(function(id) {
+        return !(typeof isJoiningHidden === 'function' && isJoiningHidden(id));
+    });
+
+    var hayVictimas = false;
+    ids.forEach(function(pid) {
+        var carta = cartaEnUsoDe(pid);
+        if (!carta) return;
+        hayVictimas = true;
+        var op = document.createElement('button');
+        op.type = 'button';
+        op.className = 'elim-opcion' + (elimVictimaId === pid ? ' seleccionada' : '');
+        var img = document.createElement('img');
+        img.src = carta.imagen;
+        img.alt = getEtiquetaCarta(carta.numero);
+        op.appendChild(img);
+        var txt = document.createElement('span');
+        txt.textContent = playersData[pid].name + ' \u2014 ' + getEtiquetaCarta(carta.numero) +
+            ' (' + getPuntosCarta(carta.numero) + ' pts)';
+        op.appendChild(txt);
+        op.addEventListener('click', function() {
+            elimVictimaId = pid;
+            if (elimKillerId === pid) elimKillerId = null;
+            renderEliminarModal();
+        });
+        cVic.appendChild(op);
+    });
+    if (!hayVictimas) {
+        var vacio = document.createElement('div');
+        vacio.className = 'empty-message';
+        vacio.textContent = 'Ningun jugador tiene una carta en uso.';
+        cVic.appendChild(vacio);
+    }
+
+    ids.forEach(function(pid) {
+        if (pid === elimVictimaId) return;
+        var op = document.createElement('button');
+        op.type = 'button';
+        op.className = 'elim-opcion elim-jugador' + (elimKillerId === pid ? ' seleccionada' : '');
+        op.textContent = playersData[pid].name;
+        op.addEventListener('click', function() {
+            elimKillerId = pid;
+            renderEliminarModal();
+        });
+        cKil.appendChild(op);
+    });
+
+    var listo = !!(elimVictimaId && elimKillerId && cartaEnUsoDe(elimVictimaId) && playersData[elimKillerId]);
+    if (btn) btn.disabled = !listo;
+    if (resumen) {
+        if (listo) {
+            var cr = cartaEnUsoDe(elimVictimaId);
+            resumen.textContent = playersData[elimKillerId].name + ' elimina la carta ' + getEtiquetaCarta(cr.numero) +
+                ' de ' + playersData[elimVictimaId].name + ' y gana ' + getPuntosCarta(cr.numero) + ' puntos.';
+        } else {
+            resumen.textContent = 'Elige la carta eliminada y quien la elimino.';
+        }
+    }
+}
+
+function confirmarEliminacion() {
+    if (hostId !== myId) return;
+    var carta = elimVictimaId ? cartaEnUsoDe(elimVictimaId) : null;
+    if (!carta || !elimKillerId || !playersData[elimKillerId]) {
+        showNotice('Faltan datos para registrar la eliminacion.');
+        return;
+    }
+    var killerId = elimKillerId;
+    var killerName = playersData[killerId].name;
+    aplicarEliminacion(carta.id, killerId, killerName);
+    broadcastEliminar(carta.id, killerId, killerName);
+    recalcularPuntos();
+    cerrarEliminarModal();
+    renderizarMisCorredores();
+    renderLeaderboard();
+    actualizarUI();
+    saveSession();
+    broadcastState('sync');
+}
+
+// 4. Cartas eliminadas (quien dio el ultimo golpe y cuantos puntos gano)
+function mostrarEliminadas() {
+    var eliminadas = cartas.filter(function(c) { return !!c.eliminadaPorId; });
+    if (eliminadas.length === 0) {
+        showNotice('No hay cartas eliminadas aun.');
         return;
     }
     var modal = document.getElementById('ganadoresModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'ganadoresModal';
-        modal.className = 'modal-overlay';
-        modal.style.display = 'none';
-        modal.innerHTML = '<div class="modal-box zoom-box"><div id="ganadoresContent" class="zoom-content"></div><button class="modal-btn btn-secondary" onclick="document.getElementById(\'ganadoresModal\').style.display=\'none\'">Cerrar</button></div>';
-        document.body.appendChild(modal);
-    }
     var content = document.getElementById('ganadoresContent');
-    if (!content) {
-        content = modal.querySelector('.zoom-content');
+    if (!modal || !content) {
+        showNotice('No se pudo abrir la lista de cartas eliminadas.');
+        return;
     }
     content.innerHTML = '';
     var title = document.createElement('h3');
-    title.textContent = 'Cartas Ganadoras';
+    title.textContent = 'Cartas Eliminadas';
     title.style.color = 'var(--text-main)';
     title.style.marginBottom = '15px';
     content.appendChild(title);
 
-    for (var i = 0; i < ganadoras.length; i++) {
-        var c = ganadoras[i];
-        var cardContainer = document.createElement('div');
-        cardContainer.style.display = 'flex';
-        cardContainer.style.alignItems = 'center';
-        cardContainer.style.gap = '10px';
-        cardContainer.style.marginBottom = '10px';
-        cardContainer.style.background = '#2a2a4a';
-        cardContainer.style.padding = '8px';
-        cardContainer.style.borderRadius = '8px';
-        cardContainer.style.width = '100%';
+    for (var i = 0; i < eliminadas.length; i++) {
+        var c = eliminadas[i];
+        var fila = document.createElement('div');
+        fila.style.display = 'flex';
+        fila.style.alignItems = 'center';
+        fila.style.gap = '10px';
+        fila.style.marginBottom = '10px';
+        fila.style.background = '#2a2a4a';
+        fila.style.padding = '8px';
+        fila.style.borderRadius = '8px';
+        fila.style.width = '100%';
         var img = document.createElement('img');
         img.src = c.imagen;
         img.alt = getEtiquetaCarta(c.numero);
@@ -252,7 +368,7 @@ function mostrarGanadores() {
         img.style.height = '80px';
         img.style.objectFit = 'cover';
         img.style.borderRadius = '4px';
-        cardContainer.appendChild(img);
+        fila.appendChild(img);
         var info = document.createElement('div');
         info.style.display = 'flex';
         info.style.flexDirection = 'column';
@@ -261,31 +377,19 @@ function mostrarGanadores() {
         numSpan.textContent = getEtiquetaCarta(c.numero);
         numSpan.style.fontWeight = 'bold';
         info.appendChild(numSpan);
-        var dueno = c.nombreGanador || 'Desconocido';
-        if (dueno === 'Desconocido') {
-            for (var id in playersData) {
-                if (playersData[id].cartasGanadoras && playersData[id].cartasGanadoras.indexOf(c.id) !== -1) {
-                    dueno = playersData[id].name;
-                    break;
-                }
-            }
+        var lineas = [
+            'Dueno: ' + (c.seleccionadoPor || 'Desconocido'),
+            'Eliminada por: ' + (c.eliminadaPor || 'Desconocido') + ' (+' + getPuntosCarta(c.numero) + ' pts)'
+        ];
+        for (var l = 0; l < lineas.length; l++) {
+            var sp = document.createElement('span');
+            sp.textContent = lineas[l];
+            sp.style.color = 'var(--text-muted)';
+            sp.style.fontSize = '0.8rem';
+            info.appendChild(sp);
         }
-        if (dueno === 'Desconocido' && typeof removedPlayersRegistry === 'object' && removedPlayersRegistry) {
-            for (var removedName in removedPlayersRegistry) {
-                var entry = removedPlayersRegistry[removedName];
-                if (entry && entry.cartasGanadoras && entry.cartasGanadoras.indexOf(c.id) !== -1) {
-                    dueno = removedName;
-                    break;
-                }
-            }
-        }
-        var duenoSpan = document.createElement('span');
-        duenoSpan.textContent = 'Dueno: ' + dueno;
-        duenoSpan.style.color = 'var(--text-muted)';
-        duenoSpan.style.fontSize = '0.8rem';
-        info.appendChild(duenoSpan);
-        cardContainer.appendChild(info);
-        content.appendChild(cardContainer);
+        fila.appendChild(info);
+        content.appendChild(fila);
     }
     modal.style.display = 'flex';
 }
@@ -304,4 +408,7 @@ window.confirmResetGlobalGame = confirmResetGlobalGame;
 window.solicitarEliminarJugador = solicitarEliminarJugador;
 window.closeRemovePlayerModal = closeRemovePlayerModal;
 window.confirmRemovePlayer = confirmRemovePlayer;
-window.mostrarGanadores = mostrarGanadores;
+window.mostrarEliminadas = mostrarEliminadas;
+window.abrirEliminarModal = abrirEliminarModal;
+window.cerrarEliminarModal = cerrarEliminarModal;
+window.confirmarEliminacion = confirmarEliminacion;

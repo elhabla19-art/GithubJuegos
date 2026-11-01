@@ -118,6 +118,24 @@
         </div>
     </div>
 
+    <!-- ELIMINAR CARTA (SOLO ANFITRION) -->
+    <div id="eliminarModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box elim-box">
+            <h3>Eliminar carta</h3>
+            <p>Carta eliminada</p>
+            <div id="elimVictimas" class="elim-lista"></div>
+            <p>Eliminada por</p>
+            <div id="elimKillers" class="elim-lista"></div>
+            <p id="elimResumen" class="elim-resumen"></p>
+            <div class="modal-buttons">
+                <div class="row-btns">
+                    <button class="modal-btn btn-outline" onclick="cerrarEliminarModal()">Cancelar</button>
+                    <button id="elimConfirmBtn" class="modal-btn btn-primary" onclick="confirmarEliminacion()" disabled>Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- UI DEL JUEGO -->
     <header>
         <h1>SugarPow</h1>
@@ -133,7 +151,8 @@
             <div class="game-controls">
                 <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
                     <button id="startGameBtn" class="modal-btn btn-primary" onclick="iniciarJuego()" style="flex: 1;">Cartas</button>
-                    <button id="ganadoresBtn" class="modal-btn btn-secondary" onclick="mostrarGanadores()" style="flex: 1;">Ganadores</button>
+                    <button id="eliminarCartaBtn" class="modal-btn btn-outline" onclick="abrirEliminarModal()" style="flex: 1; display: none;">Eliminar</button>
+                    <button id="ganadoresBtn" class="modal-btn btn-secondary" onclick="mostrarEliminadas()" style="flex: 1;">Eliminadas</button>
                     <button id="resetGameBtn" class="modal-btn btn-danger" onclick="resetGlobalGame()" style="flex: 1;">Reiniciar Todo</button>
                 </div>
                 
@@ -144,17 +163,12 @@
                         <!-- Se llena dinámicamente -->
                     </div>
                     
+                    <!-- Controles para confirmar el orden de juego -->
+                    <div id="ordenControles" class="orden-controles"></div>
+
                     <!-- Puntaje del jugador -->
                     <div id="misPuntosDisplay" style="text-align:center; font-size:1.2rem; font-weight:bold; margin:8px 0;">Puntos: 0</div>
                     <div id="mazoRestanteDisplay" style="text-align:center; font-size:0.9rem; color: var(--text-muted); margin: -4px 0 8px 0;">Restantes: 0</div>
-                    
-                    <!-- Botones globales de puntuacion (siempre visibles) -->
-                    <div id="puntaje-botones" class="puntaje-botones" style="margin-top: 10px;">
-                        <button class="btn-puntaje btn-3" id="btnPuntaje3" onclick="asignarPuntoGlobal('+3')">1°</button>
-                        <button class="btn-puntaje btn-2" id="btnPuntaje2" onclick="asignarPuntoGlobal('+2')">2°</button>
-                        <button class="btn-puntaje btn-menos" id="btnPuntajeMenos" onclick="asignarPuntoGlobal('-1')">-1</button>
-                        <button class="btn-puntaje btn-mas" id="btnPuntajeMas" onclick="asignarPuntoGlobal('+1')">+1</button>
-                    </div>
                 </div>
             </div>
 
@@ -171,7 +185,7 @@
     <script src="js/ui.js"></script>
     <script src="js/leaderboard.js"></script>
     <script src="js/zoom.js"></script>
-    <script src="js/puntaje.js"></script>
+    <script src="js/combate.js"></script>
     <script src="sesion.js"></script>
     <script src="mqtt.js"></script>
     <script src="main.js"></script>

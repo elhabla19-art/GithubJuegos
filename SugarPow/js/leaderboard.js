@@ -2,6 +2,7 @@
 var REMOVE_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14"><line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
 
 function renderLeaderboard() {
+    if (typeof recalcularPuntos === 'function') recalcularPuntos();
     var list = document.getElementById('playersList');
     list.innerHTML = '';
     var playerIds = Object.keys(playersData);
@@ -50,28 +51,17 @@ function renderLeaderboard() {
 
         card.addEventListener('click', function(pid) {
             return function() {
-                var todosEligieron = typeof todosEligieronCarta === 'function' && !todosEligieronCarta();
-                if (todosEligieron) {
+                var activeId = playersData[pid] ? playersData[pid].activeCardId : null;
+                if (!activeId) {
+                    showNotice('Este jugador no tiene una carta en uso.');
                     return;
                 }
-
-                var activeId = playersData[pid] ? playersData[pid].activeCardId : null;
-                if (activeId) {
-                    var carta = null;
-                    for (var i = 0; i < cartas.length; i++) {
-                        if (cartas[i].id === activeId) {
-                            carta = cartas[i];
-                            break;
-                        }
-                    }
-                    if (carta) {
-                        abrirZoom(carta, false, true);
-                    } else {
-                        showNotice('La carta activa de este jugador ya no esta disponible.');
-                    }
-                } else {
-                    showNotice('Este jugador no tiene una carta activa seleccionada.');
+                var carta = buscarCartaPorId(activeId);
+                if (!carta || carta.descartada) {
+                    showNotice('La carta en uso de este jugador ya no esta disponible.');
+                    return;
                 }
+                abrirZoom(carta, false, true);
             };
         }(player.id));
 
@@ -112,8 +102,12 @@ function renderLeaderboard() {
         '</div>';
 
         var seleccionesHtml = '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">';
-        if (player.selecciones.length === 0) {
-            seleccionesHtml += '<span style="font-size:0.7rem; color:var(--text-muted);">Sin selecciones</span>';
+        var seleccionesVivas = player.selecciones.filter(function(cid) {
+            var cv = buscarCartaPorId(cid);
+            return cv && !cv.descartada;
+        });
+        if (seleccionesVivas.length === 0) {
+            seleccionesHtml += '<span style="font-size:0.7rem; color:var(--text-muted);">Sin cartas</span>';
         } else {
             for (var s = 0; s < player.selecciones.length; s++) {
                 var cId = player.selecciones[s];
@@ -124,7 +118,7 @@ function renderLeaderboard() {
                         break;
                     }
                 }
-                if (carta) {
+                if (carta && !carta.descartada) {
                     seleccionesHtml += '<span style="font-size:0.7rem; background:#2a2a4a; padding:2px 6px; border-radius:4px;">' + getEtiquetaCarta(carta.numero) + '</span>';
                 }
             }

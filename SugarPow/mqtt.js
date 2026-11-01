@@ -165,13 +165,16 @@ function mergeCartas(incomingCartas) {
             imagen: inc.imagen,
             tanda: inc.tanda !== undefined ? inc.tanda : loc.tanda,
             descartada: !!(loc.descartada || inc.descartada),
-            esGanadora: !!(loc.esGanadora || inc.esGanadora),
-            nombreGanador: loc.nombreGanador || inc.nombreGanador || null,
+            eliminadaPor: loc.eliminadaPor || inc.eliminadaPor || null,
+            eliminadaPorId: loc.eliminadaPorId || inc.eliminadaPorId || null,
             seleccionadoPor: loc.seleccionadoPor || inc.seleccionadoPor || null,
             seleccionadoPorId: loc.seleccionadoPorId || inc.seleccionadoPorId || null
         });
     }
     cartas = merged;
+    for (var r = 0; r < cartas.length; r++) {
+        if (cartas[r].descartada) limpiarDuenoDeCarta(cartas[r]);
+    }
 }
 window.mergeCartas = mergeCartas;
 
@@ -188,12 +191,12 @@ window.activeCardIdSaneado = activeCardIdSaneado;
 
 function sanearMiActivaLocal() {
     if (!playersData[myId]) return;
-    var actual = playersData[myId].activeCardId;
-    if (!actual) return;
-    var saneado = activeCardIdSaneado(actual);
-    if (saneado !== actual) {
-        playersData[myId].activeCardId = saneado;
-        broadcastSetActive(myId, saneado);
+    var antes = playersData[myId].activeCardId || null;
+    // Si mi carta en uso ya no esta viva, pasa a la siguiente de mi orden
+    asegurarActivaPorOrden(myId);
+    var despues = playersData[myId].activeCardId || null;
+    if (despues !== antes) {
+        broadcastSetActive(myId, despues);
         renderizarMisCorredores();
         if (typeof actualizarUI === 'function') actualizarUI();
         saveSession();
@@ -210,7 +213,6 @@ function connectToRoom(code, isReconnect) {
     if (!isReconnect) {
         playersData = {};
         puntosPorJugador = {};
-        estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
         cartas = [];
         misSelecciones = [];
         cartaActivaId = null;
@@ -538,7 +540,11 @@ function connectToRoom(code, isReconnect) {
             if (data.action === 'start') {
                 gameStarted = true;
                 gameInitiator = data.id;
-                cartas = data.cartas || [];
+                if (data.esPrimerLote) {
+                    cartas = data.cartas || [];
+                } else {
+                    mergeCartas(data.cartas || []);
+                }
                 tandaActual = data.tandaActual !== undefined ? data.tandaActual : 0;
                 mazoRestante = data.mazoRestante || [];
                 if (data.nuevoCiclo) {
@@ -550,7 +556,12 @@ function connectToRoom(code, isReconnect) {
                     cartaActivaId = null;
                     if (playersData[myId]) playersData[myId].activeCardId = null;
                 }
-                estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
+                if (data.nuevoCiclo) {
+                    for (var oid in playersData) {
+                        if (playersData[oid]) playersData[oid].ordenCartas = [];
+                    }
+                    ordenBorrador = [];
+                }
                 for (var pid in playersData) {
                     if (!puntosPorJugador[pid]) {
                         puntosPorJugador[pid] = 0;
@@ -566,55 +577,20 @@ function connectToRoom(code, isReconnect) {
                 saveSession();
             }
 
-            if (data.action === 'puntaje_global') {
-                var jugadorId = data.id;
-                var tipo = data.tipo;
-                var nuevosPuntos = data.puntos;
-                if (jugadorId === myId) {
-                    puntosPorJugador[myId] = nuevosPuntos;
-                } else {
-                    if (!puntosPorJugador[jugadorId]) {
-                        puntosPorJugador[jugadorId] = 0;
-                    }
-                    puntosPorJugador[jugadorId] = nuevosPuntos;
-                }
-                if (tipo === '+3' || tipo === '+2') {
-                    estadoRonda.usado3 = (tipo === '+3');
-                    estadoRonda.usado2 = (tipo === '+2');
-                    if (tipo === '+3') {
-                        estadoRonda.ganadorCartaId = data.cartaId || null;
-                        estadoRonda.jugadorGanador = data.id;
-                        for (var i = 0; i < cartas.length; i++) {
-                            if (cartas[i].id === data.cartaId) {
-                                cartas[i].esGanadora = true;
-                                cartas[i].nombreGanador = data.name || null;
-                                break;
-                            }
-                        }
-                        if (playersData[jugadorId]) {
-                            if (!playersData[jugadorId].cartasGanadoras) {
-                                playersData[jugadorId].cartasGanadoras = [];
-                            }
-                            if (playersData[jugadorId].cartasGanadoras.indexOf(data.cartaId) === -1) {
-                                playersData[jugadorId].cartasGanadoras.push(data.cartaId);
-                            }
-                        }
-                    }
-                    if (tipo === '+2') {
-                        if (typeof window.aplicarDescarteActivas === 'function') {
-                            window.aplicarDescarteActivas(estadoRonda.jugadorGanador);
-                        }
-                        setTimeout(function() {
-                            reiniciarRonda();
-                        }, 500);
+            if (data.action === 'eliminar') {
+                var re = aplicarEliminacion(data.cartaId, data.killerId, data.killerName);
+                recalcularPuntos();
+                if (re && re.nueva) {
+                    var etiquetaElim = getEtiquetaCarta(re.carta.numero);
+                    if (re.carta.seleccionadoPorId === myId) {
+                        showNotice('Tu carta ' + etiquetaElim + ' fue eliminada por ' + (re.carta.eliminadaPor || 'otro jugador') + '.', 'Carta eliminada');
+                    } else if (data.killerId === myId) {
+                        showNotice('Eliminaste la carta ' + etiquetaElim + ' de ' + (re.carta.seleccionadoPor || 'otro jugador') +
+                                   '. Ganas ' + getPuntosCarta(re.carta.numero) + ' puntos.', 'Carta eliminada');
                     }
                 }
-                actualizarUI();
-                saveSession();
-            }
-
-            if (data.action === 'estado_ronda') {
-                estadoRonda = data.estado;
+                renderizarMisCorredores();
+                renderLeaderboard();
                 actualizarUI();
                 saveSession();
             }
@@ -694,10 +670,16 @@ function connectToRoom(code, isReconnect) {
                             playersData[pid].name = data.playersData[pid].name;
                             playersData[pid].selecciones = data.playersData[pid].selecciones || [];
                             playersData[pid].cartasGanadoras = data.playersData[pid].cartasGanadoras || [];
+                            if (data.playersData[pid].ordenCartas !== undefined) {
+                                playersData[pid].ordenCartas = data.playersData[pid].ordenCartas || [];
+                            }
                             if (data.playersData[pid].activeCardId !== undefined) {
                                 playersData[pid].activeCardId = activeCardIdSaneado(data.playersData[pid].activeCardId);
                             }
                         }
+                    }
+                    for (var pidOrd in playersData) {
+                        if (pidOrd !== myId) asegurarActivaPorOrden(pidOrd);
                     }
                 }
                 if (data.puntosPorJugador) {
@@ -706,9 +688,6 @@ function connectToRoom(code, isReconnect) {
                             puntosPorJugador[pid] = data.puntosPorJugador[pid];
                         }
                     }
-                }
-                if (data.estadoRonda) {
-                    estadoRonda = data.estadoRonda;
                 }
                 sanearMiActivaLocal();
                 actualizarUI();
@@ -810,7 +789,6 @@ function broadcastState(action) {
             gameInitiator: gameInitiator || null,
             playersData: playersData,
             puntosPorJugador: puntosPorJugador,
-            estadoRonda: estadoRonda,
             hostId: hostId || null,
             updatedAt: Date.now()
         });
@@ -860,7 +838,6 @@ function broadcastStart(cartasArray, tanda, mazo, esPrimerLote, nuevoCiclo) {
             gameStarted: true,
             playersData: playersData,
             puntosPorJugador: puntosPorJugador,
-            estadoRonda: estadoRonda,
             hostId: hostId || null,
             updatedAt: Date.now()
         });
@@ -887,32 +864,21 @@ function broadcastSelect(cartaId) {
     }
 }
 
-function broadcastPuntajeGlobal(tipo) {
+function broadcastEliminar(cartaId, killerId, killerName) {
     if (mqttClient && currentRoom) {
         var topic = 'sugarpow/room/' + currentRoom;
         var payload = JSON.stringify({
-            action: 'puntaje_global',
+            action: 'eliminar',
             id: myId,
             name: myName,
-            tipo: tipo,
-            puntos: puntosPorJugador[myId],
-            cartaId: estadoRonda.ganadorCartaId || null
+            cartaId: cartaId,
+            killerId: killerId,
+            killerName: killerName
         });
         mqttClient.publish(topic, payload, { qos: 1 });
     }
 }
-
-function broadcastEstadoRonda() {
-    if (mqttClient && currentRoom) {
-        var topic = 'sugarpow/room/' + currentRoom;
-        var payload = JSON.stringify({
-            action: 'estado_ronda',
-            id: myId,
-            estado: estadoRonda
-        });
-        mqttClient.publish(topic, payload, { qos: 1 });
-    }
-}
+window.broadcastEliminar = broadcastEliminar;
 
 function broadcastRemove(idToRemove, removedSnapshot) {
     if (mqttClient && currentRoom) {
@@ -975,7 +941,7 @@ window.broadcastSetActive = broadcastSetActive;
 function handleRemovedFromRoom() {
     hideLoading();
 
-    ['claimModal', 'resetGameModal', 'removePlayerModal', 'zoomModal', 'ganadoresModal'].forEach(function(id) {
+    ['claimModal', 'resetGameModal', 'removePlayerModal', 'zoomModal', 'ganadoresModal', 'eliminarModal'].forEach(function(id) {
         var modal = document.getElementById(id);
         if (modal) modal.style.display = 'none';
     });
@@ -989,7 +955,6 @@ function handleRemovedFromRoom() {
     currentRoom = null;
     playersData = {};
     puntosPorJugador = {};
-    estadoRonda = { usado3: false, usado2: false, ganadorCartaId: null, jugadorGanador: null };
     cartas = [];
     misSelecciones = [];
     cartaActivaId = null;

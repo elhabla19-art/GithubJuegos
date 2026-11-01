@@ -403,60 +403,6 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     background: #4a7a9e;
 }
 
-/* Botones globales de puntuacion */
-.puntaje-botones {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-color);
-    width: 100%;
-}
-.btn-puntaje {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: background 0.2s, opacity 0.2s;
-    min-width: 60px;
-    flex: 1;
-}
-.btn-puntaje:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-.btn-puntaje.btn-3 {
-    background: var(--color-accent);
-    color: #0A0B08;
-}
-.btn-puntaje.btn-3:not(:disabled):hover {
-    background: #fce14a;
-}
-.btn-puntaje.btn-2 {
-    background: var(--color-primary);
-    color: white;
-}
-.btn-puntaje.btn-2:not(:disabled):hover {
-    background: #8a5d9e;
-}
-.btn-puntaje.btn-menos {
-    background: var(--color-danger);
-    color: white;
-}
-.btn-puntaje.btn-menos:not(:disabled):hover {
-    background: #f54a3a;
-}
-.btn-puntaje.btn-mas {
-    background: var(--color-success);
-    color: white;
-}
-.btn-puntaje.btn-mas:not(:disabled):hover {
-    background: #14a84a;
-}
-
 /* --- LEADERBOARD --- */
 .leaderboard { 
     background: var(--bg-panel); 
@@ -770,11 +716,6 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
         max-width: 100%;
     }
     
-    .btn-puntaje {
-        padding: 8px 14px;
-        font-size: 0.95rem;
-        min-width: 50px;
-    }
 
     /* ===== FIX: Mis corredores en 2 filas de 2 en móvil ===== */
     .my-cards-container {
@@ -837,7 +778,6 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     .leaderboard { padding: 10px; max-height: 300px; overflow-y: auto; }
     .player-card { padding: 8px; }
     .player-card-mini { width: 40px; height: 55px; }
-    .btn-puntaje { padding: 6px 12px; font-size: 0.85rem; min-width: 40px; }
     
     /* Landscape - mis corredores en 2 filas también */
     .my-cards-container {
@@ -853,3 +793,68 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
     }
     .my-card-wrapper .btn-usar { font-size: 0.5rem; padding: 2px 4px; }
 }
+
+/* --- VIDA / PUNTOS DE LA CARTA --- */
+.zoom-content .zoom-stats {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    text-align: center;
+}
+.zoom-content .zoom-stats span {
+    font-weight: bold;
+    color: var(--color-accent);
+}
+.mini-vida {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+/* --- ORDEN DE JUEGO DE MIS CARTAS --- */
+.my-card-img .orden-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    min-width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: #0A0B08;
+    font-size: 0.8rem;
+    font-weight: bold;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+.orden-controles { width: 100%; }
+.orden-nota {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 8px 0;
+}
+.orden-botones { display: flex; gap: 10px; margin-bottom: 6px; }
+.orden-botones .modal-btn { flex: 1; padding: 10px; font-size: 0.9rem; }
+.orden-botones .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* --- MODAL ELIMINAR CARTA --- */
+.elim-box {
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    text-align: left;
+}
+.elim-box p { margin: 10px 0 6px 0; }
+.elim-lista { display: flex; flex-direction: column; gap: 8px; }
+.elim-opcion {
+    display: flex; align-items: center; gap: 10px;
+    background: #1a1a2e; color: var(--text-main);
+    border: 2px solid var(--border-color); border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; font-size: 0.95rem; text-align: left;
+}
+.elim-opcion img { width: 40px; height: 54px; object-fit: cover; border-radius: 4px; }
+.elim-opcion.seleccionada { border-color: var(--color-accent); background: #2a2a4a; }
+.elim-resumen { color: var(--color-accent); font-weight: bold; text-align: center; }
+.elim-box .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
