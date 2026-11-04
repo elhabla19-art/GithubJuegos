@@ -88,6 +88,13 @@ const Config = {
                 ruta: './SugarPow/index.html',
                 color: '#f5deb2',
                 topics: ['mqtt', 'dados', 'cartas']
+            },
+            {
+                id: 'HeistDados',
+                nombre: 'HeistDados',
+                ruta: './HeistDados/index.html',
+                color: '#f5deb2',
+                topics: ['local', 'dados']
             }
         ];
     },

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HeistDados</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="favicon.ico">
+</head>
+<body>
+
+    <!-- LOBBY -->
+    <div id="lobbyModal" class="modal-overlay">
+        <div class="modal-box" id="lobbyModalBox">
+            <div id="vistaPrincipal">
+                <h2>HeistDados</h2>
+                <p>Crear nueva partida</p>
+                <div class="modal-buttons">
+                    <div class="row-btns">
+                        <button class="modal-btn btn-secondary" onclick="window.toggleVistaJugadores()">Jugadores</button>
+                        <button class="modal-btn btn-primary" onclick="window.iniciarPartida()">Entrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vistaJugadores" style="display:none;">
+                <h2>Jugadores</h2>
+                <div id="listaJugadoresContainer" class="lista-jugadores"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn btn-outline" onclick="window.agregarJugador()" id="btnAgregarJugador" style="width:100%;">
+                        + Agregar Jugador
+                    </button>
+                    <button class="modal-btn btn-primary" onclick="window.toggleVistaJugadores()" style="margin-top:10px;">
+                        Listo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header>
+        <h1>HeistDados</h1>
+        <div id="turnoIndicador" class="turno-indicador" style="display:none;"></div>
+    </header>
+
+    <!-- PANEL DADOS -->
+    <div id="panelDados" class="panel-dados"></div>
+
+    <!-- CONTROLES -->
+    <div class="controles-juego">
+        <button class="btn-control btn-pasar" id="btnPasar" onclick="window.pasarTurno()">PASAR</button>
+        <button class="btn-control btn-reiniciar" onclick="window.reiniciarPartida()">Reiniciar</button>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="leaderboard" id="leaderboardPanel" style="display: none;">
+        <div class="leaderboard-header" onclick="window.toggleLeaderboard()">
+            <h3>Jugadores</h3>
+            <span id="toggleIcon">▲</span>
+        </div>
+        <div id="leaderboardContent" class="leaderboard-content">
+            <div id="playersList"></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
