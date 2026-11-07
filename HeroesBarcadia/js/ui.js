@@ -46,8 +46,7 @@ function renderizarTablero() {
         (fichasPorHex[j.posicion] = fichasPorHex[j.posicion] || []).push(pid);
     });
 
-    var miTurno = esMiTurno() && !partida.movido;
-    var alcance = miTurno ? calcularAlcance(myId) : {};
+    var opciones = esMiTurno() ? calcularOpciones(myId) : { mover: {}, entrar: {} };
     var miPos = partida.jugadores[myId] ? partida.jugadores[myId].posicion : null;
     var turnoId = turnoActualId();
 
@@ -57,17 +56,18 @@ function renderizarTablero() {
 
         var w = dim.w * HEX_ESCALA_IMG, ht = dim.h * HEX_ESCALA_IMG;
         g.appendChild(svgEl('image', {
-            href: getImagenHexagono(h.tipo),
+            href: getImagenTile(h),
             x: c.x - w / 2, y: c.y - ht / 2, width: w, height: ht,
             preserveAspectRatio: 'xMidYMid meet'
         }));
 
-        // De momento solo se ven los monstruos de los hexagonos desbloqueados
-        if (h.tipo === 'calabozo' && h.desbloqueado && h.monstruo) {
+        // Enemigos (monstruos, jefes, guardian) de los hexagonos descubiertos
+        var cont = (h.tipo === 'calabozo' && h.desbloqueado) ? getContenidoHex(h) : null;
+        if (cont && cont.overlay) {
             var mw = dim.w * 0.8, mh = dim.h * 0.8;
             g.appendChild(svgEl('image', {
                 'class': 'hex-monstruo' + (h.despejado ? ' despejado' : ''),
-                href: getImagenMonstruo(h.monstruo),
+                href: cont.imagen,
                 x: c.x - mw / 2, y: c.y - mh / 2 - HEX_SIZE * 0.08, width: mw, height: mh,
                 preserveAspectRatio: 'xMidYMid meet'
             }));
@@ -75,8 +75,9 @@ function renderizarTablero() {
 
         // Capa de interaccion / resaltado
         var clases = 'hex-hit';
-        if (alcance[h.id] === 1) clases += ' alc1';
-        else if (alcance[h.id] === 2) clases += ' alc2';
+        if (opciones.mover[h.id] === 1) clases += ' alc1';
+        else if (opciones.mover[h.id] === 2) clases += ' alc2';
+        else if (opciones.entrar[h.id]) clases += ' entrar';
         if (h.id === miPos) clases += ' actual';
         g.appendChild(svgEl('polygon', { 'class': clases, points: hexPuntos(c.x, c.y) }));
 
@@ -121,7 +122,10 @@ function renderizarMiHeroe() {
     var turnoId = turnoActualId();
     if (turnoEl) {
         turnoEl.className = 'turno-display' + (esMiTurno() ? ' mio' : '');
-        if (!partida.iniciada) {
+        if (partida.ganador) {
+            var gn = playersData[partida.ganador] ? playersData[partida.ganador].name : '---';
+            turnoEl.textContent = 'Fin del juego \u00b7 Gano ' + gn;
+        } else if (!partida.iniciada) {
             turnoEl.textContent = 'Partida sin iniciar';
         } else if (esMiTurno()) {
             turnoEl.textContent = 'Ronda ' + partida.ronda + ' \u00b7 \u00a1Es tu turno!';
@@ -131,14 +135,15 @@ function renderizarMiHeroe() {
         }
     }
     if (movEl) {
-        if (!partida.iniciada || !esMiTurno()) {
+        if (!partida.iniciada || !esMiTurno() || partida.ganador) {
             movEl.textContent = '';
         } else if (partida.combate && partida.combate.pid === myId) {
             movEl.textContent = 'Elige Atacar o Retirada.';
         } else if (partida.movido) {
-            movEl.textContent = 'Ya te moviste. Pulsa "Pasar turno" cuando termines.';
+            movEl.textContent = 'Ya entraste a un hexagono. Pulsa "Pasar turno" cuando termines.';
         } else {
-            movEl.textContent = 'Toca un hexagono resaltado para avanzar (amarillo: 1 paso, verde: 2 pasos).';
+            var rest = MAX_PASOS - (partida.pasos || 0);
+            movEl.textContent = 'Pasos libres: ' + rest + '. Camina por hexagonos libres (amarillo 1 paso, verde 2) y luego entra a uno sin explorar junto a ti (rojo).';
         }
     }
 
@@ -179,6 +184,51 @@ function renderizarMiHeroe() {
     stats.innerHTML =
         '<div class="vida-texto">Vida ' + vida + ' / ' + VIDA_INICIAL_HEROE + '</div>' +
         '<div class="vida-barra"><div class="vida-relleno" style="width:' + Math.max(0, Math.min(100, vida)) + '%"></div></div>' +
-        '<div class="hero-recompensas">Botin: <b>' + (j.botin || 0) + '</b> \u00b7 Potenciadores: <b>' + (j.potenciadores || 0) + '</b></div>';
+        '<div class="hero-recompensas">Botin: <b>' + (j.manoBotin || []).length + '</b> \u00b7 Potenciadores: <b>' + (j.manoPot || []).length + '</b></div>';
     cont.appendChild(stats);
+}
+
+// ===== MIS CARTAS (manos de Botin y Potenciadores) y mazos =====
+function pintarMano(cont, mano, tipo) {
+    if (!cont) return;
+    cont.innerHTML = '';
+    if (!mano.length) {
+        var vacio = document.createElement('div');
+        vacio.className = 'empty-message';
+        vacio.textContent = 'Sin cartas';
+        cont.appendChild(vacio);
+        return;
+    }
+    var cuenta = {};
+    mano.forEach(function(n) { cuenta[n] = (cuenta[n] || 0) + 1; });
+    Object.keys(cuenta).map(Number).sort(function(a, b) { return a - b; }).forEach(function(n) {
+        var info = getInfoCarta(tipo, n);
+        var d = document.createElement('div');
+        d.className = 'carta-mini';
+        var img = document.createElement('img');
+        img.src = info.imagen;
+        img.alt = info.titulo;
+        img.loading = 'lazy';
+        d.appendChild(img);
+        if (cuenta[n] > 1) {
+            var badge = document.createElement('div');
+            badge.className = 'carta-mini-badge';
+            badge.textContent = '\u00d7' + cuenta[n];
+            d.appendChild(badge);
+        }
+        d.addEventListener('click', function() { abrirZoomCarta(tipo, n); });
+        cont.appendChild(d);
+    });
+}
+
+function renderizarMisCartas() {
+    var j = partida.jugadores[myId];
+    pintarMano(document.getElementById('my-botin-container'), j ? (j.manoBotin || []) : [], 'botin');
+    pintarMano(document.getElementById('my-pot-container'), j ? (j.manoPot || []) : [], 'potenciador');
+    var mz = document.getElementById('mazosDisplay');
+    if (mz) {
+        mz.textContent = partida.iniciada
+            ? 'Mazos \u00b7 Botin ' + partida.mazos.botin.length + ' \u00b7 Potenciadores ' + partida.mazos.potenciadores.length + ' \u00b7 Reglas ' + partida.mazos.reglas.length
+            : '';
+    }
 }

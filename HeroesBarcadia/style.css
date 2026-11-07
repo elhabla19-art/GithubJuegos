@@ -923,3 +923,21 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .vida-relleno { height: 100%; background: var(--color-success); transition: width 0.3s; }
 .hero-recompensas { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
 .zoom-content .row-btns { display: flex; gap: 10px; }
+
+/* --- Entrar a hexagono sin explorar --- */
+.hex-hit.entrar { stroke: var(--color-danger, #e0483e); stroke-width: 3; stroke-dasharray: 6 4; fill: rgba(224, 72, 62, 0.20); }
+
+/* --- Manos de cartas --- */
+.mano-container { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; width: 100%; }
+.carta-mini { position: relative; width: 64px; cursor: pointer; border-radius: 6px; overflow: hidden; border: 2px solid var(--border-color); }
+.carta-mini img { display: block; width: 100%; height: auto; }
+.carta-mini-badge {
+    position: absolute; right: 2px; bottom: 2px; background: rgba(0,0,0,0.8); color: #fff;
+    font-size: 0.7rem; font-weight: bold; padding: 1px 5px; border-radius: 8px;
+}
+.recompensa-fila { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 10px 0; }
+.recompensa-fila img { width: 90px; height: auto; border-radius: 6px; cursor: pointer; }
+.regla-fila { display: flex; gap: 10px; align-items: flex-start; background: #2a2a4a; border-radius: 8px; padding: 8px; margin-bottom: 8px; width: 100%; text-align: left; }
+.regla-fila img { width: 70px; height: auto; border-radius: 4px; cursor: pointer; flex-shrink: 0; }
+.regla-texto { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+.regla-texto span { color: var(--text-muted); }

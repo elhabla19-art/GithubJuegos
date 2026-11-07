@@ -13,7 +13,11 @@ var HEX_ORIENTACION = 'flat';
 var HEX_ESCALA_IMG = 1.0;
 var HEX_SIZE = 50; // radio del hexagono en unidades del SVG
 
-var TOTAL_HEX_CALABOZO = 30;
+var TOTAL_HEX_CALABOZO = 35;
+// Contenido del calabozo: 15 monstruos + 9 recompensas + 1 portal + 9 jefes + 1 guardian = 35
+var CANT_MONSTRUOS_TABLERO = 15;
+var CANT_RECOMPENSAS_TABLERO = 9;
+var CANT_JEFES_TABLERO = 9;
 var MAX_JUGADORES = 6;       // el central solo tiene 6 vecinos
 var TOTAL_HEROES = 8;        // Heroes_1.jpg ... Heroes_8.jpg
 var TOTAL_MONSTRUOS = 33;    // Monstruo_1.png ... Monstruo_33.png
@@ -28,6 +32,15 @@ function getImagenHexagono(tipo) {
 }
 function getImagenHeroe(n) { return 'imagenes/heroes/Heroes_' + n + '.jpg'; }
 function getImagenMonstruo(n) { return 'imagenes/enemigos/Monstruo_' + n + '.png'; }
+// Imagen del hexagono segun su estado: la piedra mientras esta oculto; al
+// descubrirlo, recompensas y portales muestran su propio hexagono.
+function getImagenTile(hex) {
+    if (hex.tipo === 'calabozo' && hex.desbloqueado) {
+        var c = getContenidoHex(hex);
+        if (c.tile) return c.tile;
+    }
+    return getImagenHexagono(hex.tipo);
+}
 function getNombreHeroe(n) { return 'Heroe #' + n; }
 
 // ===== GEOMETRIA =====
@@ -99,31 +112,50 @@ function generarTablero(ordenIds) {
     for (var i = 0; i < n; i++) slots.push(Math.round(i * 6 / n) % 6);
 
     var hexes = [];
-    hexes.push({ id: hexId(0, 0), q: 0, r: 0, tipo: 'centro', monstruo: null, desbloqueado: true, despejado: true, duenoId: null });
+    hexes.push({ id: hexId(0, 0), q: 0, r: 0, tipo: 'centro', desbloqueado: true, despejado: true, duenoId: null });
 
     var ocupados = {};
     for (var s = 0; s < slots.length; s++) {
         var c = anillo1[slots[s]];
         ocupados[hexId(c.q, c.r)] = true;
-        hexes.push({ id: hexId(c.q, c.r), q: c.q, r: c.r, tipo: 'inicio', monstruo: null, desbloqueado: true, despejado: true, duenoId: ordenIds[s] });
+        hexes.push({ id: hexId(c.q, c.r), q: c.q, r: c.r, tipo: 'inicio', desbloqueado: true, despejado: true, duenoId: ordenIds[s] });
     }
 
-    // Celdas del calabozo: anillo 1 libre + anillo 2 completo + parte del anillo 3
+    // Celdas del calabozo: anillo 1 libre y luego anillos completos (2, 3...);
+    // el ultimo anillo se rellena al azar hasta llegar a TOTAL_HEX_CALABOZO.
     var celdas = anillo1.filter(function(c) { return !ocupados[hexId(c.q, c.r)]; });
-    celdas = celdas.concat(hexAnillo(2));
-    var faltan = TOTAL_HEX_CALABOZO - celdas.length;
-    if (faltan > 0) celdas = celdas.concat(mezclar(hexAnillo(3)).slice(0, faltan));
-    celdas = celdas.slice(0, TOTAL_HEX_CALABOZO);
+    for (var k = 2; celdas.length < TOTAL_HEX_CALABOZO; k++) {
+        var anillo = hexAnillo(k);
+        var falta = TOTAL_HEX_CALABOZO - celdas.length;
+        celdas = celdas.concat(anillo.length <= falta ? anillo : mezclar(anillo).slice(0, falta));
+    }
 
-    var monstruos = mezclar(rangoNumeros(TOTAL_MONSTRUOS));
+    var contenidos = generarContenidos();
     for (var m = 0; m < celdas.length; m++) {
         hexes.push({
             id: hexId(celdas[m].q, celdas[m].r), q: celdas[m].q, r: celdas[m].r,
-            tipo: 'calabozo', monstruo: monstruos[m],
+            tipo: 'calabozo', clase: contenidos[m].clase, numero: contenidos[m].numero,
             desbloqueado: false, despejado: false, duenoId: null
         });
     }
     return hexes;
+}
+
+// Sortea que hay en cada hexagono del calabozo (en orden aleatorio)
+function generarContenidos() {
+    var lista = [];
+    mezclar(rangoNumeros(TOTAL_MONSTRUOS)).slice(0, CANT_MONSTRUOS_TABLERO).forEach(function(n) {
+        lista.push({ clase: 'monstruo', numero: n });
+    });
+    mezclar(POOL_RECOMPENSAS).slice(0, CANT_RECOMPENSAS_TABLERO).forEach(function(n) {
+        lista.push({ clase: 'recompensa', numero: n });
+    });
+    lista.push({ clase: 'portal', numero: 1 });
+    mezclar(rangoNumeros(TOTAL_JEFES)).slice(0, CANT_JEFES_TABLERO).forEach(function(n) {
+        lista.push({ clase: 'jefe', numero: n });
+    });
+    lista.push({ clase: 'guardian', numero: 1 });
+    return mezclar(lista);
 }
 
 // ===== CONSULTAS =====
@@ -150,25 +182,44 @@ function hexLibre(hex) {
     return !!(hex.desbloqueado && hex.despejado);
 }
 
-// Hexagonos a los que puede ir un jugador en su turno: { hexId: pasos }
-//  - 1 paso: cualquier vecino.
-//  - 2 pasos: a traves de un vecino desbloqueado y despejado.
-function calcularAlcance(pid) {
-    var res = {};
+// Opciones del jugador en su turno:
+//  - mover:  { hexId: pasos } hexagonos LIBRES (desbloqueados y despejados) a los
+//            que puede caminar, pasando solo por hexagonos libres, con los pasos
+//            que le queden (maximo MAX_PASOS por turno).
+//  - entrar: { hexId: true } hexagonos sin explorar ADYACENTES a donde esta parado.
+//            Entrar revela el enemigo y termina el movimiento del turno.
+var MAX_PASOS = 2;
+
+function calcularOpciones(pid) {
+    var res = { mover: {}, entrar: {} };
     var j = partida.jugadores[pid];
-    if (!j) return res;
+    if (!j || !partida.iniciada || partida.movido || partida.combate) return res;
     var origen = buscarHex(j.posicion);
     if (!origen) return res;
-    var v1 = vecinosDe(origen);
-    v1.forEach(function(h) { res[h.id] = 1; });
-    v1.forEach(function(h) {
-        if (!hexLibre(h)) return;
-        vecinosDe(h).forEach(function(h2) {
-            if (h2.id !== origen.id && !res[h2.id]) res[h2.id] = 2;
+
+    var restantes = MAX_PASOS - (partida.pasos || 0);
+    var dist = {};
+    dist[origen.id] = 0;
+    var cola = [origen];
+    while (cola.length) {
+        var cur = cola.shift();
+        var d = dist[cur.id];
+        if (d >= restantes) continue;
+        vecinosDe(cur).forEach(function(v) {
+            if (dist[v.id] === undefined && hexLibre(v)) {
+                dist[v.id] = d + 1;
+                cola.push(v);
+            }
         });
+    }
+    for (var id in dist) {
+        if (id !== origen.id) res.mover[id] = dist[id];
+    }
+    vecinosDe(origen).forEach(function(v) {
+        if (v.tipo === 'calabozo' && !v.desbloqueado) res.entrar[v.id] = true;
     });
     return res;
 }
 
-window.calcularAlcance = calcularAlcance;
+window.calcularOpciones = calcularOpciones;
 window.buscarHex = buscarHex;

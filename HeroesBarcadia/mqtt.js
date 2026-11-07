@@ -381,7 +381,14 @@ function connectToRoom(code, isReconnect) {
             }
 
             if (data.action === 'mover') {
-                if (data.version > partida.version && aplicarMovimiento(data.pid, data.hexId, data.version)) {
+                if (data.version > partida.version && aplicarMovimiento(data.pid, data.hexId, data.costo, data.version)) {
+                    actualizarUI();
+                    saveSession();
+                }
+            }
+
+            if (data.action === 'entrar') {
+                if (data.version > partida.version && aplicarEntrar(data.pid, data.hexId, data.version)) {
                     actualizarUI();
                     saveSession();
                 }
@@ -391,6 +398,14 @@ function connectToRoom(code, isReconnect) {
                 if (data.version > partida.version && aplicarPasarTurno(data.version)) {
                     actualizarUI();
                     saveSession();
+                }
+            }
+
+            if (data.action === 'regla') {
+                if (data.version > partida.version && aplicarSacarRegla(data.version)) {
+                    actualizarUI();
+                    saveSession();
+                    abrirReglas(); // todos ven la regla nueva
                 }
             }
 
@@ -517,11 +532,17 @@ function broadcastStart(p) {
     gameInitiator = myId;
 }
 
-function broadcastMover(hexId, version) {
-    publicar({ action: 'mover', id: myId, name: myName, pid: myId, hexId: hexId, version: version });
+function broadcastMover(hexId, costo, version) {
+    publicar({ action: 'mover', id: myId, name: myName, pid: myId, hexId: hexId, costo: costo, version: version });
+}
+function broadcastEntrar(hexId, version) {
+    publicar({ action: 'entrar', id: myId, name: myName, pid: myId, hexId: hexId, version: version });
 }
 function broadcastPasar(version) {
     publicar({ action: 'pasar', id: myId, name: myName, version: version });
+}
+function broadcastRegla(version) {
+    publicar({ action: 'regla', id: myId, name: myName, version: version });
 }
 function broadcastAtacar(version) {
     publicar({ action: 'atacar', id: myId, name: myName, version: version });

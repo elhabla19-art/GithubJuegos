@@ -60,7 +60,7 @@ function renderLeaderboard() {
         var avatar = j
             ? '<img class="pc-hero" src="' + getImagenHeroe(j.heroe) + '" alt="' + getNombreHeroe(j.heroe) + '">'
             : '<span class="pc-hero pc-hero-vacio">?</span>';
-        var heroeTxt = j ? (getNombreHeroe(j.heroe) + ' \u00b7 Vida ' + getVida(j) + ' \u00b7 Botin ' + (j.botin || 0) + ' \u00b7 Pot. ' + (j.potenciadores || 0)) : 'Sin heroe';
+        var heroeTxt = j ? (getNombreHeroe(j.heroe) + ' \u00b7 Vida ' + getVida(j) + ' \u00b7 Botin ' + (j.manoBotin || []).length + ' \u00b7 Pot. ' + (j.manoPot || []).length) : 'Sin heroe';
 
         card.innerHTML =
             '<div class="player-card-header">' +

@@ -124,6 +124,7 @@
                 <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
                     <button id="startGameBtn" class="modal-btn btn-primary" onclick="iniciarJuego()" style="flex: 1;">Heroes</button>
                     <button id="passTurnBtn" class="modal-btn btn-secondary" onclick="pasarTurno()" style="flex: 1; display: none;">Pasar turno</button>
+                    <button id="reglasBtn" class="modal-btn btn-secondary" onclick="abrirReglas()" style="flex: 1; display: none;">Reglas (0)</button>
                     <button id="resetGameBtn" class="modal-btn btn-danger" onclick="resetGlobalGame()" style="flex: 1;">Reiniciar Todo</button>
                 </div>
 
@@ -135,6 +136,15 @@
                 <div class="my-cards-section">
                     <h4>Mi Heroe</h4>
                     <div id="my-hero-container" class="my-cards-container"></div>
+                </div>
+
+                <!-- Manos de cartas -->
+                <div class="my-cards-section">
+                    <h4>Mis Cartas Botin</h4>
+                    <div id="my-botin-container" class="mano-container"></div>
+                    <h4>Mis Potenciadores</h4>
+                    <div id="my-pot-container" class="mano-container"></div>
+                    <div id="mazosDisplay" class="orden-nota"></div>
                 </div>
             </div>
 
@@ -153,6 +163,7 @@
     <script src="js/zoom.js"></script>
     <script src="js/tablero.js"></script>
     <script src="js/enemigos.js"></script>
+    <script src="js/cartas.js"></script>
     <script src="sesion.js"></script>
     <script src="mqtt.js"></script>
     <script src="main.js"></script>
