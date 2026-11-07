@@ -401,6 +401,13 @@ function connectToRoom(code, isReconnect) {
                 }
             }
 
+            if (data.action === 'accion') {
+                if (data.version > partida.version && aplicarAccion(data.tipo, data.pid, data.n, data.params, data.version)) {
+                    actualizarUI();
+                    saveSession();
+                }
+            }
+
             if (data.action === 'regla') {
                 if (data.version > partida.version && aplicarSacarRegla(data.version)) {
                     actualizarUI();
@@ -540,6 +547,9 @@ function broadcastEntrar(hexId, version) {
 }
 function broadcastPasar(version) {
     publicar({ action: 'pasar', id: myId, name: myName, version: version });
+}
+function broadcastAccion(tipo, n, params, version) {
+    publicar({ action: 'accion', id: myId, name: myName, pid: myId, tipo: tipo, n: n, params: params || {}, version: version });
 }
 function broadcastRegla(version) {
     publicar({ action: 'regla', id: myId, name: myName, version: version });

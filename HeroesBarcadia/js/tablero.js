@@ -189,6 +189,8 @@ function hexLibre(hex) {
 //  - entrar: { hexId: true } hexagonos sin explorar ADYACENTES a donde esta parado.
 //            Entrar revela el enemigo y termina el movimiento del turno.
 var MAX_PASOS = 2;
+// Con el Potenciador 38 (u otros efectos) se permiten pasos extra en el turno
+function maxPasosTurno() { return MAX_PASOS + (partida.pasosExtra || 0); }
 
 function calcularOpciones(pid) {
     var res = { mover: {}, entrar: {} };
@@ -197,7 +199,7 @@ function calcularOpciones(pid) {
     var origen = buscarHex(j.posicion);
     if (!origen) return res;
 
-    var restantes = MAX_PASOS - (partida.pasos || 0);
+    var restantes = maxPasosTurno() - (partida.pasos || 0);
     var dist = {};
     dist[origen.id] = 0;
     var cola = [origen];

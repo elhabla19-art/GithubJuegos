@@ -69,6 +69,21 @@ function renderLeaderboard() {
             '</div>' +
             '<div class="pc-sub">' + heroeTxt + '</div>';
 
+        // Los Potenciadores son equipo visible para todos
+        if (j && (j.manoPot || []).length) {
+            var fila = document.createElement('div');
+            fila.className = 'pc-pots';
+            j.manoPot.forEach(function(n) {
+                var im = document.createElement('img');
+                im.src = getImagenPotenciador(n);
+                im.alt = 'Potenciador ' + n;
+                im.title = 'Potenciador #' + n;
+                im.addEventListener('click', function(e) { e.stopPropagation(); abrirZoomCarta('potenciador', n, false); });
+                fila.appendChild(im);
+            });
+            card.appendChild(fila);
+        }
+
         var claimBtn = card.querySelector('[data-claim-host="1"]');
         if (claimBtn) {
             claimBtn.addEventListener('click', function(e) {

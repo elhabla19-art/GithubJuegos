@@ -79,6 +79,7 @@ function renderizarTablero() {
         else if (opciones.mover[h.id] === 2) clases += ' alc2';
         else if (opciones.entrar[h.id]) clases += ' entrar';
         if (h.id === miPos) clases += ' actual';
+        if (seleccionHex && seleccionHex.ids[h.id]) clases += ' sel';
         g.appendChild(svgEl('polygon', { 'class': clases, points: hexPuntos(c.x, c.y) }));
 
         // Fichas
@@ -104,7 +105,13 @@ function renderizarTablero() {
             g.appendChild(ficha);
         });
 
-        g.addEventListener('click', function() { abrirZoomHex(h.id); });
+        g.addEventListener('click', function() {
+            if (seleccionHex) {
+                if (seleccionHex.ids[h.id]) seleccionHex.cb(h.id);
+                return;
+            }
+            abrirZoomHex(h.id);
+        });
         svg.appendChild(g);
     });
 
@@ -142,7 +149,7 @@ function renderizarMiHeroe() {
         } else if (partida.movido) {
             movEl.textContent = 'Ya entraste a un hexagono. Pulsa "Pasar turno" cuando termines.';
         } else {
-            var rest = MAX_PASOS - (partida.pasos || 0);
+            var rest = maxPasosTurno() - (partida.pasos || 0);
             movEl.textContent = 'Pasos libres: ' + rest + '. Camina por hexagonos libres (amarillo 1 paso, verde 2) y luego entra a uno sin explorar junto a ti (rojo).';
         }
     }
@@ -186,6 +193,13 @@ function renderizarMiHeroe() {
         '<div class="vida-barra"><div class="vida-relleno" style="width:' + Math.max(0, Math.min(100, vida)) + '%"></div></div>' +
         '<div class="hero-recompensas">Botin: <b>' + (j.manoBotin || []).length + '</b> \u00b7 Potenciadores: <b>' + (j.manoPot || []).length + '</b></div>';
     cont.appendChild(stats);
+
+    var hab = document.createElement('div');
+    hab.className = 'hero-habilidad';
+    hab.textContent = 'Habilidad: ' + DATOS_HEROES[j.heroe];
+    cont.appendChild(hab);
+    var bh = crearBotonHabilidad();
+    if (bh) { bh.style.marginTop = '6px'; cont.appendChild(bh); }
 }
 
 // ===== MIS CARTAS (manos de Botin y Potenciadores) y mazos =====
@@ -216,7 +230,7 @@ function pintarMano(cont, mano, tipo) {
             badge.textContent = '\u00d7' + cuenta[n];
             d.appendChild(badge);
         }
-        d.addEventListener('click', function() { abrirZoomCarta(tipo, n); });
+        d.addEventListener('click', function() { abrirZoomCarta(tipo, n, true); });
         cont.appendChild(d);
     });
 }

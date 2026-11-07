@@ -116,6 +116,10 @@
 
     <div class="app-container">
         <div class="board-container">
+            <div id="seleccionBanner" class="seleccion-banner" style="display: none;">
+                <span id="seleccionTexto"></span>
+                <button class="modal-btn btn-outline" onclick="cancelarSeleccionHex()">Cancelar</button>
+            </div>
             <div id="tablero" class="tablero"></div>
         </div>
 
@@ -124,6 +128,7 @@
                 <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
                     <button id="startGameBtn" class="modal-btn btn-primary" onclick="iniciarJuego()" style="flex: 1;">Heroes</button>
                     <button id="passTurnBtn" class="modal-btn btn-secondary" onclick="pasarTurno()" style="flex: 1; display: none;">Pasar turno</button>
+                    <button id="accionesBtn" class="modal-btn btn-outline" onclick="abrirAcciones()" style="flex: 1; display: none;">Cartas y habilidades</button>
                     <button id="reglasBtn" class="modal-btn btn-secondary" onclick="abrirReglas()" style="flex: 1; display: none;">Reglas (0)</button>
                     <button id="resetGameBtn" class="modal-btn btn-danger" onclick="resetGlobalGame()" style="flex: 1;">Reiniciar Todo</button>
                 </div>
@@ -153,6 +158,12 @@
                 <h3>Jugadores</h3>
                 <div id="playersList"></div>
             </div>
+
+            <!-- Registro de cartas y habilidades usadas -->
+            <div class="leaderboard" id="registroPanel" style="display: flex;">
+                <h3>Registro</h3>
+                <div id="registroList"></div>
+            </div>
         </div>
     </div>
 
@@ -164,6 +175,8 @@
     <script src="js/tablero.js"></script>
     <script src="js/enemigos.js"></script>
     <script src="js/cartas.js"></script>
+    <script src="js/efectos.js"></script>
+    <script src="js/acciones.js"></script>
     <script src="sesion.js"></script>
     <script src="mqtt.js"></script>
     <script src="main.js"></script>

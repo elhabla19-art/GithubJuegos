@@ -20,6 +20,9 @@
 // jugadores[id] = { heroe, posicion, vida, manoBotin: [n...], manoPot: [n...] }
 // mazos = { botin, potenciadores, reglas } -> listas de numeros de carta (tope = indice 0)
 // reglasActivas = [n...] reglas ya reveladas
+// descarteBotin = [n...] Botin usado; descartePot = [n...] Potenciadores abandonados en la mazmorra
+// registro = [texto...] anuncios de lo que se va usando; pasosExtra, luchoEnTurno = banderas del turno
+// jugadores[id].usos = { h3, h5 } (habilidades de una vez); .usadas = { clave: turno } (una vez por turno)
 function nuevaPartidaVacia(version) {
     return {
         version: version || 0,
@@ -34,7 +37,12 @@ function nuevaPartidaVacia(version) {
         combate: null,
         ganador: null,
         mazos: { botin: [], potenciadores: [], reglas: [] },
-        reglasActivas: []
+        reglasActivas: [],
+        descarteBotin: [],
+        descartePot: [],
+        registro: [],
+        pasosExtra: 0,
+        luchoEnTurno: false
     };
 }
 var partida = nuevaPartidaVacia();
@@ -48,10 +56,15 @@ function aplicarPartida(p) {
     // Compatibilidad con partidas guardadas antes de existir los mazos
     if (!partida.mazos) partida.mazos = { botin: [], potenciadores: [], reglas: [] };
     if (!partida.reglasActivas) partida.reglasActivas = [];
+    if (!partida.descarteBotin) partida.descarteBotin = [];
+    if (!partida.descartePot) partida.descartePot = [];
+    if (!partida.registro) partida.registro = [];
     for (var pid in partida.jugadores) {
         var jj = partida.jugadores[pid];
         if (!jj.manoBotin) jj.manoBotin = [];
         if (!jj.manoPot) jj.manoPot = [];
+        if (!jj.usos) jj.usos = {};
+        if (!jj.usadas) jj.usadas = {};
     }
     gameStarted = !!partida.iniciada;
 }
@@ -109,7 +122,7 @@ function iniciarJuego() {
         }
         jugadores[orden[i]] = {
             heroe: heroes[i], posicion: inicio ? inicio.id : hexId(0, 0),
-            vida: VIDA_INICIAL_HEROE, manoBotin: [], manoPot: []
+            vida: VIDA_INICIAL_HEROE, manoBotin: [], manoPot: [], usos: {}, usadas: {}
         };
     }
 
@@ -126,7 +139,12 @@ function iniciarJuego() {
         combate: null,
         ganador: null,
         mazos: construirMazos(),
-        reglasActivas: []
+        reglasActivas: [],
+        descarteBotin: [],
+        descartePot: [],
+        registro: [],
+        pasosExtra: 0,
+        luchoEnTurno: false
     });
     gameInitiator = myId;
 
@@ -170,7 +188,8 @@ function aplicarEntrar(pid, hexIdDestino, version) {
     partida.movido = true;
     var cartas = { botin: [], potenciadores: [] };
     if (cont.combate) {
-        partida.combate = { pid: pid, hexId: hex.id, origenId: origenId };
+        partida.combate = { pid: pid, hexId: hex.id, origenId: origenId, nivelMod: 0 };
+        partida.luchoEnTurno = true;
     } else {
         hex.despejado = true;
         cartas = robarRecompensa(j, cont.botin, cont.potenciadores);
@@ -192,7 +211,7 @@ function validarMiTurno() {
 function moverJugador(hexIdDestino) {
     if (!validarMiTurno()) return;
     var costo = calcularOpciones(myId).mover[hexIdDestino];
-    if (!costo) { showNotice('Solo puedes moverte a hexagonos libres, hasta ' + MAX_PASOS + ' pasos por turno.'); return; }
+    if (!costo) { showNotice('Solo puedes moverte a hexagonos libres, hasta ' + maxPasosTurno() + ' pasos por turno.'); return; }
     aplicarMovimiento(myId, hexIdDestino, costo, siguienteVersion());
     broadcastMover(hexIdDestino, costo, partida.version);
     actualizarUI();
@@ -219,10 +238,14 @@ window.entrarHex = entrarHex;
 // ===== TURNOS =====
 function aplicarPasarTurno(version) {
     if (!partida.iniciada || !partida.orden.length) return false;
+    efectosFinTurno(turnoActualId());
     partida.turnoIdx = (partida.turnoIdx + 1) % partida.orden.length;
     if (partida.turnoIdx === 0) partida.ronda++;
     partida.movido = false;
     partida.pasos = 0;
+    partida.pasosExtra = 0;
+    partida.luchoEnTurno = false;
+    efectosInicioTurno(turnoActualId());
     if (version) partida.version = version;
     return true;
 }
@@ -275,12 +298,15 @@ function aplicarRetirada(version) {
     var j = partida.jugadores[c.pid];
     var dano = 0;
     if (hex) {
-        dano = getContenidoHex(hex).dano;
+        var cont = getContenidoHex(hex);
+        dano = cont.dano;
+        // Potenciador 1: el dano recibido en batalla contra un Jefe se reduce en 5
+        if (cont.clase === 'jefe' && j && tienePot(j, 1)) dano = Math.max(0, dano - 5);
         hex.desbloqueado = false;   // el hexagono vuelve a ocultarse
         hex.despejado = false;
     }
     if (j) {
-        j.vida = Math.max(0, getVida(j) - dano);
+        aplicarDano(c.pid, dano);
         j.posicion = buscarHex(c.origenId) ? c.origenId : hexId(0, 0);
     }
     partida.combate = null;
@@ -402,6 +428,8 @@ function actualizarUI() {
         reglasBtn.style.display = partida.iniciada ? '' : 'none';
         reglasBtn.textContent = 'Reglas (' + partida.reglasActivas.length + ')';
     }
+    var accBtn = document.getElementById('accionesBtn');
+    if (accBtn) accBtn.style.display = (partida.iniciada && tengoProgreso()) ? '' : 'none';
     var resetBtn = document.getElementById('resetGameBtn');
     if (resetBtn) resetBtn.style.display = (hostId === myId) ? '' : 'none';
 
@@ -409,8 +437,10 @@ function actualizarUI() {
     renderizarMiHeroe();
     renderizarMisCartas();
     renderLeaderboard();
+    if (typeof renderRegistro === 'function') renderRegistro();
     if (typeof sincronizarModalCombate === 'function') sincronizarModalCombate();
     if (typeof sincronizarVictoria === 'function') sincronizarVictoria();
+    if (typeof sincronizarDescarte === 'function') sincronizarDescarte();
 }
 window.actualizarUI = actualizarUI;
 

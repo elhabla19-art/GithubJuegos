@@ -144,6 +144,14 @@ function descripcionContenido(ct, hex) {
     return lineas.join('\n');
 }
 
+// Cambia cuando algo que afecta al combate cambia (nivel, bono, salud, cartas)
+function claveCombate() {
+    var c = partida.combate;
+    if (!c) return null;
+    var j = partida.jugadores[myId];
+    return c.hexId + '|' + (c.nivelMod || 0) + '|' + (j ? (j.manoPot || []).join(',') + '|' + (j.manoBotin || []).length + '|' + getVida(j) : '');
+}
+
 function abrirCombate() {
     var c = partida.combate;
     if (!c) return;
@@ -162,7 +170,11 @@ function abrirCombate() {
 
     var info = document.createElement('div');
     info.className = 'zoom-info';
-    info.innerHTML = ct.titulo.replace(/</g, '&lt;') + ' \u00b7 Nivel <span>' + ct.nivelTxt + '</span>';
+    var mod = c.nivelMod || 0;
+    var nivelTxt = ct.nivelTxt;
+    if (ct.nivel !== undefined && mod) nivelTxt = ct.nivel + (mod > 0 ? ' +' : ' ') + mod + ' = ' + (ct.nivel + mod);
+    else if (mod) nivelTxt += ' (' + (mod > 0 ? '+' : '') + mod + ')';
+    info.innerHTML = ct.titulo.replace(/</g, '&lt;') + ' \u00b7 Nivel <span>' + nivelTxt + '</span>';
     content.appendChild(info);
 
     var st = document.createElement('div');
@@ -173,6 +185,10 @@ function abrirCombate() {
     var tengoPot = j ? (j.manoPot || []).length : 0;
     var faltaPot = !!(ct.requierePot && tengoPot < ct.requierePot);
     if (ct.requierePot) txt += '\nPara luchar necesitas ' + ct.requierePot + ' Potenciadores (tienes ' + tengoPot + ')';
+    if (ct.clase === 'monstruo' || ct.clase === 'jefe') {
+        var bono = calcularBonoAtaque(myId, ct);
+        txt += '\nBono de ataque: ' + (bono.total > 0 ? '+' : '') + bono.total + (bono.fuentes.length ? ' (' + bono.fuentes.join(', ') + ')' : '');
+    }
     st.textContent = txt;
     content.appendChild(st);
 
@@ -192,7 +208,13 @@ function abrirCombate() {
     fila.appendChild(bA);
     content.appendChild(fila);
 
-    combateMostrado = c.hexId;
+    var bAcc = document.createElement('button');
+    bAcc.className = 'modal-btn btn-secondary';
+    bAcc.textContent = 'Cartas y habilidades';
+    bAcc.addEventListener('click', abrirAcciones);
+    content.appendChild(bAcc);
+
+    combateMostrado = claveCombate();
     modal.style.display = 'flex';
 }
 
@@ -216,7 +238,7 @@ function sincronizarVictoria() {
 // Se llama desde actualizarUI: abre el combate si me toca (tambien tras recargar)
 function sincronizarModalCombate() {
     if (combatePendienteMio()) {
-        if (combateMostrado !== partida.combate.hexId) abrirCombate();
+        if (combateMostrado !== claveCombate()) abrirCombate();
     } else if (combateMostrado !== null) {
         // El combate se resolvio (p. ej. el anfitrion me retiro): cerrar el modal
         combateMostrado = null;
@@ -226,8 +248,8 @@ function sincronizarModalCombate() {
 }
 
 // ===== VER UNA CARTA (Botin, Potenciador o Regla) =====
-function abrirZoomCarta(tipo, n) {
-    if (combatePendienteMio()) { abrirCombate(); return; }
+function abrirZoomCarta(tipo, n, mia) {
+    if (combatePendienteMio() && !mia) { abrirCombate(); return; }
     var info = getInfoCarta(tipo, n);
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
@@ -248,10 +270,31 @@ function abrirZoomCarta(tipo, n) {
         if (i === 0 && info.momento) d.style.fontWeight = 'bold';
         content.appendChild(d);
     });
+    if (mia && tipo === 'botin') {
+        var bU = document.createElement('button');
+        bU.className = 'btn-choose';
+        bU.textContent = 'Usar carta (se descarta)';
+        bU.addEventListener('click', function() { usarBotin(n); });
+        content.appendChild(bU);
+    }
+    if (mia && tipo === 'potenciador') {
+        if (POT_USABLES.indexOf(n) !== -1) {
+            var bP = document.createElement('button');
+            bP.className = 'btn-choose';
+            bP.textContent = 'Usar (una vez por turno)';
+            bP.addEventListener('click', function() { usarPot(n); });
+            content.appendChild(bP);
+        }
+        var bD = document.createElement('button');
+        bD.className = 'modal-btn btn-outline';
+        bD.textContent = 'Descartar';
+        bD.addEventListener('click', function() { descartarPot(n); });
+        content.appendChild(bD);
+    }
     var btnC = document.createElement('button');
     btnC.className = 'modal-btn btn-secondary';
     btnC.textContent = 'Cerrar';
-    btnC.addEventListener('click', cerrarZoom);
+    btnC.addEventListener('click', mia ? cerrarOVolver : cerrarZoom);
     content.appendChild(btnC);
     modal.style.display = 'flex';
 }
@@ -304,7 +347,7 @@ function abrirRecompensa(r) {
     var btn = document.createElement('button');
     btn.className = 'modal-btn btn-primary';
     btn.textContent = 'Continuar';
-    btn.addEventListener('click', cerrarZoom);
+    btn.addEventListener('click', function() { cerrarZoom(); sincronizarDescarte(); });
     content.appendChild(btn);
     modal.style.display = 'flex';
 }
@@ -366,6 +409,7 @@ function abrirReglas() {
 
 function cerrarZoom() {
     if (combatePendienteMio()) return; // no se puede cerrar sin elegir
+    if (typeof descarteForzadoPendiente === 'function' && descarteForzadoPendiente()) return;
     var modal = document.getElementById('zoomModal');
     if (modal) modal.style.display = 'none';
 }

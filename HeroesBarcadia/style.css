@@ -941,3 +941,26 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 .regla-fila img { width: 70px; height: auto; border-radius: 4px; cursor: pointer; flex-shrink: 0; }
 .regla-texto { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
 .regla-texto span { color: var(--text-muted); }
+
+/* --- Aviso siempre por encima de otros modales --- */
+#noticeModal { z-index: 3000; }
+
+/* --- Seleccion de hexagonos y cartas --- */
+.hex-hit.sel { stroke: #3ec6ff; stroke-width: 4; fill: rgba(62, 198, 255, 0.22); }
+.seleccion-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: #1a1a2e; border: 1px solid #3ec6ff; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem;
+}
+.carta-sel { outline: 3px solid var(--color-accent); transform: scale(1.04); }
+
+/* --- Heroe: habilidad --- */
+.hero-habilidad { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; text-align: left; }
+
+/* --- Equipo visible en la lista de jugadores --- */
+.pc-pots { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.pc-pots img { width: 28px; height: auto; border-radius: 3px; border: 1px solid var(--border-color); cursor: pointer; }
+
+/* --- Registro --- */
+#registroList { max-height: 260px; overflow-y: auto; width: 100%; }
+.registro-item { font-size: 0.75rem; color: var(--text-muted); padding: 6px 4px; border-bottom: 1px solid var(--border-color); text-align: left; }
