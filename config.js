@@ -95,6 +95,13 @@ const Config = {
                 ruta: './HeistDados/index.html',
                 color: '#f5deb2',
                 topics: ['local', 'dados']
+            },
+            {
+                id: 'HeroesBarcadia',
+                nombre: 'HeroesBarcadia',
+                ruta: './HeroesBarcadia/index.html',
+                color: '#f5deb2',
+                topics: ['mqtt', 'dados', 'cartas']
             }
         ];
     },
