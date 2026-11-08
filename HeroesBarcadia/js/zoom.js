@@ -65,25 +65,46 @@ function abrirZoomHex(id) {
 
     // Acciones
     var op = (partida.iniciada && esMiTurno()) ? calcularOpciones(myId) : { mover: {}, entrar: {} };
-    if (op.mover[hex.id]) {
-        var pasos = op.mover[hex.id];
-        var btn = document.createElement('button');
-        btn.className = 'btn-choose';
-        btn.textContent = 'Moverme aqui (' + pasos + (pasos === 1 ? ' paso)' : ' pasos)');
-        btn.addEventListener('click', function() {
-            cerrarZoom();
-            moverJugador(hex.id);
-        });
-        content.appendChild(btn);
-    } else if (op.entrar[hex.id]) {
-        var btnE = document.createElement('button');
-        btnE.className = 'btn-choose';
-        btnE.textContent = 'Entrar';
-        btnE.addEventListener('click', function() {
-            cerrarZoom();
-            entrarHex(hex.id); // revela al enemigo y abre el combate
-        });
-        content.appendChild(btnE);
+    if (op.rival && op.rival[hex.id]) {
+        var rv = op.rival[hex.id];
+        var bRt = document.createElement('button');
+        bRt.className = 'btn-choose';
+        bRt.textContent = 'Retar a ' + nom(rv.pid) + ' (' + rv.costo + (rv.costo === 1 ? ' paso)' : ' pasos)');
+        bRt.addEventListener('click', function() { cerrarZoom(); retarJugador(hex.id); });
+        content.appendChild(bRt);
+    } else {
+        // Un hexagono revelado sin completar ofrece Mover (solo pisarlo) y Entrar (luchar)
+        if (op.mover[hex.id]) {
+            var pasos = op.mover[hex.id];
+            var btn = document.createElement('button');
+            btn.className = 'btn-choose';
+            btn.textContent = 'Mover (' + pasos + (pasos === 1 ? ' paso)' : ' pasos)') + ((hex.trampas || 0) > 0 ? ' \u2013 con trampa' : '');
+            btn.addEventListener('click', function() {
+                cerrarZoom();
+                moverJugador(hex.id);
+            });
+            content.appendChild(btn);
+        }
+        if (op.entrar[hex.id]) {
+            var btnE = document.createElement('button');
+            btnE.className = 'btn-choose';
+            btnE.textContent = 'Entrar';
+            btnE.addEventListener('click', function() {
+                cerrarZoom();
+                entrarHex(hex.id); // revela al enemigo y abre el combate
+            });
+            content.appendChild(btnE);
+        }
+    }
+    // Potenciador 5 (pasivo): al elegir un hexagono oculto aparece "Potenciador" junto a Entrar
+    var jz = partida.jugadores[myId];
+    if (partida.iniciada && jz && hex.tipo === 'calabozo' && !hex.desbloqueado && esMiTurno() &&
+        tienePot(jz, 5) && !yaUsadoTurno(jz, 'p5')) {
+        var bPot5 = document.createElement('button');
+        bPot5.className = 'btn-choose';
+        bPot5.textContent = 'Potenciador';
+        bPot5.addEventListener('click', function() { cerrarZoom(); usarPot5(hex.id); });
+        content.appendChild(bPot5);
     }
     var btnC = document.createElement('button');
     btnC.className = 'modal-btn btn-secondary';
@@ -152,9 +173,66 @@ function claveCombate() {
     return c.hexId + '|' + (c.nivelMod || 0) + '|' + (j ? (j.manoPot || []).join(',') + '|' + (j.manoBotin || []).length + '|' + getVida(j) : '');
 }
 
+// Modal del duelo contra otro jugador
+function abrirCombateDuelo(c) {
+    var rj = partida.jugadores[c.rivalId];
+    var modal = document.getElementById('zoomModal');
+    var content = document.getElementById('zoomContent');
+    content.innerHTML = '';
+    var img = document.createElement('img');
+    img.src = rj ? getImagenHeroe(rj.heroe) : '';
+    img.alt = 'Rival';
+    content.appendChild(img);
+    var info = document.createElement('div');
+    info.className = 'zoom-info';
+    info.innerHTML = 'Duelo contra <span></span>';
+    info.querySelector('span').textContent = nom(c.rivalId);
+    content.appendChild(info);
+    var st = document.createElement('div');
+    st.className = 'zoom-stats';
+    st.textContent = 'El perdedor recibe 10 de dano.';
+    content.appendChild(st);
+    var yo = calcularBonoAtaque(myId, { clase: 'duelo' });
+    var el = calcularBonoAtaque(c.rivalId, { clase: 'duelo' });
+    [['Tu dado', yo], ['Dado de ' + nom(c.rivalId), el]].forEach(function(p) {
+        if (!p[1].fuentes.length) return;
+        var bd = document.createElement('div');
+        bd.className = 'bono-dado' + (p[1].total < 0 ? ' negativo' : '');
+        bd.innerHTML = '<b></b>';
+        bd.querySelector('b').textContent = p[0] + ': ' + (p[1].total >= 0 ? '+' : '') + p[1].total;
+        var fu = document.createElement('div');
+        fu.className = 'bono-fuentes';
+        fu.textContent = p[1].fuentes.join(' \u00b7 ');
+        bd.appendChild(fu);
+        content.appendChild(bd);
+    });
+    var fila = document.createElement('div');
+    fila.className = 'row-btns';
+    fila.style.width = '100%';
+    var bR = document.createElement('button');
+    bR.className = 'modal-btn btn-outline';
+    bR.textContent = 'Retirarse (-10 vida)';
+    bR.addEventListener('click', retirarse);
+    var bA = document.createElement('button');
+    bA.className = 'modal-btn btn-danger';
+    bA.textContent = 'Atacar';
+    bA.addEventListener('click', atacar);
+    fila.appendChild(bR);
+    fila.appendChild(bA);
+    content.appendChild(fila);
+    var bAcc = document.createElement('button');
+    bAcc.className = 'modal-btn btn-secondary';
+    bAcc.textContent = 'Cartas';
+    bAcc.addEventListener('click', abrirAcciones);
+    content.appendChild(bAcc);
+    combateMostrado = claveCombate();
+    modal.style.display = 'flex';
+}
+
 function abrirCombate() {
     var c = partida.combate;
     if (!c) return;
+    if (c.tipo === 'duelo') { abrirCombateDuelo(c); return; }
     var hex = buscarHex(c.hexId);
     if (!hex) return;
     var ct = getContenidoHex(hex);
@@ -185,12 +263,21 @@ function abrirCombate() {
     var tengoPot = j ? (j.manoPot || []).length : 0;
     var faltaPot = !!(ct.requierePot && tengoPot < ct.requierePot);
     if (ct.requierePot) txt += '\nPara luchar necesitas ' + ct.requierePot + ' Potenciadores (tienes ' + tengoPot + ')';
-    if (ct.clase === 'monstruo' || ct.clase === 'jefe') {
-        var bono = calcularBonoAtaque(myId, ct);
-        txt += '\nBono de ataque: ' + (bono.total > 0 ? '+' : '') + bono.total + (bono.fuentes.length ? ' (' + bono.fuentes.join(', ') + ')' : '');
-    }
     st.textContent = txt;
     content.appendChild(st);
+    if (ct.clase === 'monstruo' || ct.clase === 'jefe') {
+        var bono = calcularBonoAtaque(myId, ct);
+        if (bono.fuentes.length) {
+            var bd = document.createElement('div');
+            bd.className = 'bono-dado' + (bono.total < 0 ? ' negativo' : '');
+            bd.innerHTML = '<b>' + (bono.total >= 0 ? '+' : '') + bono.total + ' a tu dado</b>';
+            var fu = document.createElement('div');
+            fu.className = 'bono-fuentes';
+            fu.textContent = bono.fuentes.join(' \u00b7 ');
+            bd.appendChild(fu);
+            content.appendChild(bd);
+        }
+    }
 
     var fila = document.createElement('div');
     fila.className = 'row-btns';
@@ -210,7 +297,7 @@ function abrirCombate() {
 
     var bAcc = document.createElement('button');
     bAcc.className = 'modal-btn btn-secondary';
-    bAcc.textContent = 'Cartas y habilidades';
+    bAcc.textContent = 'Cartas';
     bAcc.addEventListener('click', abrirAcciones);
     content.appendChild(bAcc);
 
@@ -258,33 +345,38 @@ function abrirZoomCarta(tipo, n, mia) {
     img.src = info.imagen;
     img.alt = info.titulo;
     content.appendChild(img);
-    var t = document.createElement('div');
-    t.className = 'zoom-info';
-    t.textContent = info.titulo;
-    content.appendChild(t);
-    var textos = [info.momento, info.texto].filter(function(x) { return !!x; });
-    textos.forEach(function(tx, i) {
+    // La carta ya dice cuando se usa y que hace: solo las Reglas muestran texto
+    if (tipo === 'regla') {
+        var t = document.createElement('div');
+        t.className = 'zoom-info';
+        t.textContent = info.titulo;
+        content.appendChild(t);
         var d = document.createElement('div');
         d.className = 'zoom-stats';
-        d.textContent = tx;
-        if (i === 0 && info.momento) d.style.fontWeight = 'bold';
+        d.textContent = info.texto;
         content.appendChild(d);
-    });
+    }
     if (mia && tipo === 'botin') {
         var bU = document.createElement('button');
         bU.className = 'btn-choose';
-        bU.textContent = 'Usar carta (se descarta)';
+        bU.textContent = 'Usar';
         bU.addEventListener('click', function() { usarBotin(n); });
         content.appendChild(bU);
     }
     if (mia && tipo === 'potenciador') {
-        if (POT_USABLES.indexOf(n) !== -1) {
-            var bP = document.createElement('button');
+        var jm = partida.jugadores[myId];
+        var est = jm ? estadoPot(jm, n) : 'activo';
+        var bP = document.createElement('button');
+        if (est === 'usable') {
             bP.className = 'btn-choose';
-            bP.textContent = 'Usar (una vez por turno)';
+            bP.textContent = 'Activar';
             bP.addEventListener('click', function() { usarPot(n); });
-            content.appendChild(bP);
+        } else {
+            bP.className = 'btn-choose btn-pressed';
+            bP.disabled = true;
+            bP.textContent = est === 'activo' ? 'Activo' : (est === 'volteado' ? 'Boca abajo' : 'Activado este turno');
         }
+        content.appendChild(bP);
         var bD = document.createElement('button');
         bD.className = 'modal-btn btn-outline';
         bD.textContent = 'Descartar';
@@ -410,6 +502,7 @@ function abrirReglas() {
 function cerrarZoom() {
     if (combatePendienteMio()) return; // no se puede cerrar sin elegir
     if (typeof descarteForzadoPendiente === 'function' && descarteForzadoPendiente()) return;
+    if (typeof pendienteForzadoPendiente === 'function' && pendienteForzadoPendiente()) return;
     var modal = document.getElementById('zoomModal');
     if (modal) modal.style.display = 'none';
 }

@@ -381,9 +381,22 @@ function connectToRoom(code, isReconnect) {
             }
 
             if (data.action === 'mover') {
-                if (data.version > partida.version && aplicarMovimiento(data.pid, data.hexId, data.costo, data.version)) {
+                if (data.version > partida.version && aplicarMovimiento(data.pid, data.hexId, data.costo, data.version, data.modo, data.previoId)) {
                     actualizarUI();
                     saveSession();
+                }
+            }
+
+            if (data.action === 'retar') {
+                if (data.version > partida.version && aplicarRetar(data.pid, data.rivalId, data.costo, data.version, data.desactivar)) {
+                    actualizarUI();
+                    saveSession();
+                    if (data.rivalId === myId) {
+                        var bonoR = calcularBonoAtaque(myId, { clase: 'duelo' });
+                        showNotice(nom(data.pid) + ' te reta a un duelo. Tira tu dado en la mesa.' +
+                            (bonoR.fuentes.length ? '\nTu dado: ' + (bonoR.total >= 0 ? '+' : '') + bonoR.total + ' (' + bonoR.fuentes.join(', ') + ')' : ''),
+                            'Duelo');
+                    }
                 }
             }
 
@@ -539,8 +552,11 @@ function broadcastStart(p) {
     gameInitiator = myId;
 }
 
-function broadcastMover(hexId, costo, version) {
-    publicar({ action: 'mover', id: myId, name: myName, pid: myId, hexId: hexId, costo: costo, version: version });
+function broadcastMover(hexId, costo, modo, previoId, version) {
+    publicar({ action: 'mover', id: myId, name: myName, pid: myId, hexId: hexId, costo: costo, modo: modo || null, previoId: previoId || null, version: version });
+}
+function broadcastRetar(rivalId, costo, desactivar, version) {
+    publicar({ action: 'retar', id: myId, name: myName, pid: myId, rivalId: rivalId, costo: costo, desactivar: !!desactivar, version: version });
 }
 function broadcastEntrar(hexId, version) {
     publicar({ action: 'entrar', id: myId, name: myName, pid: myId, hexId: hexId, version: version });

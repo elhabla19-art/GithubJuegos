@@ -964,3 +964,46 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 /* --- Registro --- */
 #registroList { max-height: 260px; overflow-y: auto; width: 100%; }
 .registro-item { font-size: 0.75rem; color: var(--text-muted); padding: 6px 4px; border-bottom: 1px solid var(--border-color); text-align: left; }
+
+/* ============================================ */
+/* ===== PANEL DEL HEROE: vida en cuadros ===== */
+/* ============================================ */
+.hero-panel { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+.vida-cuadros { display: flex; gap: 4px; justify-content: center; }
+.vida-cuadro {
+    width: 22px; height: 22px; box-sizing: border-box; position: relative;
+    border: 2px solid var(--c); border-radius: 3px; overflow: hidden;
+}
+.vida-cuadro-relleno { height: 100%; background: var(--c); }
+.vida-cuadro.vacio { border-style: dashed; background: transparent; opacity: 0.55; }
+.vida-num { font-size: 0.75rem; color: var(--text-muted); margin-top: -2px; }
+
+/* --- Trampas --- */
+.trampa { fill: #ff8c1a; stroke: #ffffff; stroke-width: 1.2; pointer-events: none; }
+
+/* --- Bono de dado en combate --- */
+.bono-dado {
+    width: 100%; box-sizing: border-box; text-align: center; margin: 6px 0;
+    padding: 8px; border-radius: 8px; border: 1px solid var(--color-accent);
+    background: rgba(242, 207, 29, 0.12); color: var(--color-accent); font-size: 1.1rem;
+}
+.bono-dado.negativo { border-color: #e0483e; color: #e0483e; background: rgba(224, 72, 62, 0.12); }
+.bono-fuentes { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; font-weight: normal; }
+
+/* --- Botones presionados (Potenciadores activos) --- */
+.btn-pressed {
+    background: #118C3C !important; color: #fff !important; opacity: 1 !important; cursor: default !important;
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.5); transform: translateY(2px);
+}
+
+/* --- Insignia de estado de Potenciadores en las miniaturas --- */
+.pot-estado {
+    position: absolute; top: 2px; left: 2px; font-size: 0.6rem; font-weight: bold; padding: 1px 4px;
+    border-radius: 8px; color: #fff; background: rgba(0, 0, 0, 0.75);
+}
+.pot-estado.activo { background: #118C3C; }
+.pot-estado.usable { background: #c98a00; }
+.pot-estado.usado { background: #555; }
+
+/* --- Retar a duelo --- */
+.hex-hit.duelo { stroke: #c03bff; stroke-width: 3; stroke-dasharray: 3 3; fill: rgba(192, 59, 255, 0.20); }

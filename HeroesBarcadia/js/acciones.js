@@ -29,11 +29,13 @@ function cerrarOVolver() {
     if (combatePendienteMio()) { abrirCombate(); return; }
     ocultarModal();
     sincronizarDescarte();
+    sincronizarPendiente();
 }
 function finAccionUI() {
     if (combatePendienteMio()) abrirCombate();
     else if (!(modalVisible() && document.querySelector('#zoomContent .descarte-forzado'))) ocultarModal();
     sincronizarDescarte();
+    sincronizarPendiente();
 }
 function elTitulo(c, texto) {
     var t = document.createElement('div');
@@ -99,12 +101,12 @@ function elegirJugadores(o) {   // hasta o.max jugadores
     var sel = {};
     abrirContenido(function(c) {
         elTitulo(c, o.titulo);
-        elTexto(c, 'Elige hasta ' + o.max + '.');
+        elTexto(c, o.texto || ('Elige hasta ' + o.max + '.'));
         var botones = {};
         var ok;
         function actualizar() {
             var n = Object.keys(sel).length;
-            ok.disabled = n < 1 || n > o.max;
+            ok.disabled = n < (o.min === undefined ? 1 : o.min) || n > o.max;
             o.candidatos.forEach(function(pid) { botones[pid].className = 'modal-btn ' + (sel[pid] ? 'btn-primary' : 'btn-outline'); });
         }
         o.candidatos.forEach(function(pid) {
@@ -160,6 +162,64 @@ function elegirCartas(o) {
         actualizar();
     });
     return true;
+}
+
+// Par o impar (el dado se tira fuera de la pagina). o.noQuiero agrega la opcion de no usarlo.
+function elegirParImpar(o) {
+    abrirContenido(function(c) {
+        elTitulo(c, o.titulo);
+        if (o.texto) elTexto(c, o.texto);
+        elBoton(c, 'Salio par', 'btn-primary', function() { o.cb('par'); });
+        elBoton(c, 'Salio impar', 'btn-outline', function() { o.cb('impar'); });
+        if (o.noQuiero) elBoton(c, 'No quiero hacerlo', 'btn-secondary', function() { o.cb('no'); });
+        else elBoton(c, 'Cancelar', 'btn-secondary', cerrarOVolver);
+    });
+}
+
+// Ordenar cartas tocandolas en el orden deseado (1 = la primera)
+function elegirOrden(o) {
+    var orden = [];
+    abrirContenido(function(c) {
+        elTitulo(c, o.titulo);
+        if (o.texto) elTexto(c, o.texto);
+        var grid = document.createElement('div');
+        grid.className = 'mano-container';
+        c.appendChild(grid);
+        var ok;
+        var els = [];
+        function actualizar() {
+            ok.disabled = orden.length !== o.items.length;
+            els.forEach(function(el, i) {
+                var pos = orden.indexOf(i);
+                el.classList.toggle('carta-sel', pos !== -1);
+                el.querySelector('.carta-mini-badge').textContent = pos === -1 ? '' : String(pos + 1);
+                el.querySelector('.carta-mini-badge').style.display = pos === -1 ? 'none' : '';
+            });
+        }
+        o.items.forEach(function(n, i) {
+            var info = getInfoCarta(o.tipo, n);
+            var d = document.createElement('div');
+            d.className = 'carta-mini';
+            d.style.width = '80px';
+            var im = document.createElement('img');
+            im.src = info.imagen;
+            im.alt = info.titulo;
+            d.appendChild(im);
+            var b = document.createElement('div');
+            b.className = 'carta-mini-badge';
+            d.appendChild(b);
+            d.addEventListener('click', function() {
+                var p = orden.indexOf(i);
+                if (p !== -1) orden.splice(p, 1); else orden.push(i);
+                actualizar();
+            });
+            grid.appendChild(d);
+            els.push(d);
+        });
+        ok = elBoton(c, 'Confirmar orden', 'btn-danger', function() { o.cb(orden.map(function(i) { return o.items[i]; })); });
+        elBoton(c, 'Cancelar', 'btn-secondary', cerrarOVolver);
+        actualizar();
+    });
 }
 
 // Elegir un hexagono directamente en el tablero
@@ -219,7 +279,7 @@ function ejecutarAccion(tipo, n, params, despues) {
 // ===== BOTIN =====
 function hexesDesocupadosLibres() {
     var oc = hexesOcupados();
-    return partida.hexes.filter(function(h) { return hexLibre(h) && !oc[h.id]; }).map(function(h) { return h.id; });
+    return partida.hexes.filter(function(h) { return hexRevelado(h) && h.clase !== 'guardian' && !oc[h.id] && !(h.trampas > 0); }).map(function(h) { return h.id; });
 }
 
 function usarBotin(n) {
@@ -236,6 +296,7 @@ function usarBotin(n) {
         showNotice('Esta carta se usa en el turno de un oponente que esta a punto de pelear.');
         return;
     }
+    if ((n === 1 || n === 9 || n === 16) && c && c.tipo === 'duelo') { showNotice('Esta carta solo afecta a monstruos, no a duelos.'); return; }
     if (n === 9 && !(c && c.pid === myId)) { showNotice('Solo se usa cuando estas a punto de pelear con un monstruo.'); return; }
     if (n === 2 && c) { showNotice('Resuelve primero el combate.'); return; }
 
@@ -276,6 +337,29 @@ function usarBotin(n) {
             elegirCartas({ titulo: 'Descarta 2 Cartas botin mas', texto: 'Se descartan junto con esta carta y robas un Potenciador.',
                 tipo: 'botin', cantidad: 2, items: otras, vacio: 'Necesitas otras 2 Cartas botin en tu mano.',
                 cb: function(nums) { fin({ descartar: nums.map(Number) }); } });
+            break;
+        case 4:
+            var hp = buscarHex(j.posicion);
+            if (!hp || hp.tipo !== 'calabozo' || !hp.desbloqueado || (c && c.hexId === hp.id)) {
+                showNotice('Solo puedes colocar una trampa en el hexagono donde estas si ya fue revelado (no en el inicio ni en un combate).');
+                return;
+            }
+            if ((hp.trampas || 0) >= 3) { showNotice('Ya hay 3 trampas en este hexagono.'); return; }
+            if (bloqueadoPor53(hp.id, myId)) { showNotice('Un oponente con el Potenciador #53 impide colocar trampas junto a el.'); return; }
+            if (tienePot(j, 33)) {
+                // Potenciador 33: 3 trampas en habitaciones distintas; las otras 2 son adyacentes a la primera
+                var cand33 = vecinosDe(hp).filter(function(h) { return puedeTrampa(h, myId); }).map(function(h) { return h.id; });
+                if (!cand33.length) { fin({ extra: [] }); break; }
+                elegirHex({ titulo: 'Potenciador 33: 2a trampa (adyacente a la primera)', ids: cand33,
+                    cb: function(h1) {
+                        var resto = cand33.filter(function(x) { return x !== h1; });
+                        if (!resto.length) { fin({ extra: [h1] }); return; }
+                        elegirHex({ titulo: 'Potenciador 33: 3a trampa (otra habitacion adyacente)', ids: resto,
+                            cb: function(h2) { fin({ extra: [h1, h2] }); } });
+                    } });
+                break;
+            }
+            fin({});
             break;
         case 29:
             var rnd = {};
@@ -325,7 +409,7 @@ function usarBotin(n) {
 function destinos13(o) {
     var pos = buscarHex(partida.jugadores[o].posicion);
     var oc = hexesOcupados();
-    return pos ? vecinosDe(pos).filter(function(h) { return hexLibre(h) && !oc[h.id]; }).map(function(h) { return h.id; }) : [];
+    return pos ? vecinosDe(pos).filter(function(h) { return hexRevelado(h) && h.clase !== 'guardian' && !oc[h.id] && !(h.trampas > 0); }).map(function(h) { return h.id; }) : [];
 }
 window.usarBotin = usarBotin;
 
@@ -334,10 +418,13 @@ function usarPot(n) {
     var j = partida.jugadores[myId];
     if (!j || !tienePot(j, n)) return;
     if (partida.ganador) { showNotice('La partida ya termino.'); return; }
-    if (!esMiTurno()) { showNotice('Este Potenciador se usa durante tu turno.'); return; }
-    if (n !== 56 && yaUsadoTurno(j, 'p' + n)) { showNotice('Ya usaste este Potenciador en este turno.'); return; }
+    var fuera = POT_FUERA_DE_TURNO.indexOf(n) !== -1;
+    if (!fuera && !esMiTurno()) { showNotice('Este Potenciador se usa durante tu turno.'); return; }
+    if (POT_SIN_LIMITE.indexOf(n) === -1 && yaUsadoTurno(j, 'p' + n)) { showNotice('Ya usaste este Potenciador en este turno.'); return; }
     var ops = otrosJugadores();
-    function fin(params) { ejecutarAccion('pot', n, params); }
+    function fin(params, despues) { ejecutarAccion('pot', n, params, despues); }
+    var oc = hexesOcupados();
+
     switch (n) {
         case 2:
             elegirJugador({ titulo: 'Intercambiar con el Potenciador de...', vacio: 'Ningun oponente tiene Potenciadores.',
@@ -348,12 +435,78 @@ function usarPot(n) {
                         cb: function(nums) { fin({ objetivo: o, pot: Number(nums[0]) }); } });
                 } });
             break;
+        case 10:
+            var mazoP = partida.mazos.potenciadores;
+            if (!mazoP.length) { showNotice('No quedan Potenciadores en el mazo.'); return; }
+            elegirCartas({ titulo: 'Elige un Potenciador del mazo (' + mazoP.length + ' restantes)',
+                texto: 'El Topo vuelve al mazo y el mazo se baraja.', tipo: 'potenciador', cantidad: 1,
+                items: mazoP.slice().sort(function(a, b) { return a - b; }).map(function(x) { return { n: x }; }),
+                cb: function(nums) {
+                    var elegido = Number(nums[0]);
+                    var nuevo = mazoP.filter(function(x) { return x !== elegido; });
+                    nuevo.push(10);
+                    fin({ pot: elegido, nuevoMazo: mezclar(nuevo) });
+                } });
+            break;
+        case 14: case 45:
+            elegirJugadores({ titulo: n === 14 ? 'Quienes NO se levantaron?' : 'Quienes NO te hicieron un cumplido?',
+                texto: 'Selecciona a quienes no lo hicieron: reciben 5 de dano (puedes no elegir a nadie).',
+                candidatos: ops, max: ops.length, min: 0,
+                cb: function(lista) { fin({ objetivos: lista }); } });
+            break;
+        case 21:
+            elegirJugador({ titulo: 'Un 20 en los dados: 10 de dano a...', candidatos: ops,
+                cb: function(o) { fin({ objetivo: o }); } });
+            break;
+        case 22:
+            elegirParImpar({ titulo: 'Potenciador 22', texto: 'El oponente tiro el dado. Salio par (+4) o impar (+1)?',
+                cb: function(r) { fin({ par: r === 'par' }); } });
+            break;
+        case 23:
+            if (j.manoBotin.length < 2) { showNotice('Necesitas al menos 2 Cartas botin en tu mano.'); return; }
+            elegirCartas({ titulo: 'Devuelve 2 Cartas botin al mazo', texto: 'Luego robas 2 nuevas.', tipo: 'botin', cantidad: 2,
+                items: j.manoBotin.map(function(x) { return { n: x }; }),
+                cb: function(nums) {
+                    var dev = nums.map(Number);
+                    fin({ devolver: dev, nuevoMazo: mezclar(partida.mazos.botin.concat(dev)) });
+                } });
+            break;
+        case 24:
+            if (!partida.derrotoEnTurno) { showNotice('Solo puedes teletransportarte despues de derrotar a un Monstruo en este turno.'); return; }
+            elegirHex({ titulo: 'Teletransportarte a una habitacion revelada, desocupada y sin trampas', ids: hexesDesocupadosLibres(),
+                cb: function(h) { fin({ hex: h }); } });
+            break;
+        case 35:
+            elegirHex({ titulo: 'Mira una habitacion adyacente sin revelar',
+                ids: vecinosDe(buscarHex(j.posicion)).filter(function(h) { return h.tipo === 'calabozo' && !h.desbloqueado; }).map(function(h) { return h.id; }),
+                vacio: 'No hay habitaciones adyacentes sin revelar.',
+                cb: function(h) { fin({ hex: h }, function() { abrirVistazo(h); }); } });
+            break;
+        case 37:
+            if (!cercaDePortal(myId)) { showNotice('Debes estar en un Portal Magico o en una habitacion adyacente a uno.'); return; }
+            elegirHex({ titulo: 'Teletransportarte a una habitacion desocupada y sin trampas', ids: hexesDesocupadosLibres(),
+                cb: function(h) { fin({ hex: h }); } });
+            break;
         case 39:
-            var miHex = buscarHex(j.posicion);
-            var ady = vecinosDe(miHex).map(function(h) { return h.id; });
+            var ady = vecinosDe(buscarHex(j.posicion)).map(function(h) { return h.id; });
             elegirJugador({ titulo: '5 de dano a un oponente adyacente', vacio: 'No hay oponentes en habitaciones adyacentes.',
                 candidatos: ops.filter(function(o) { return ady.indexOf(partida.jugadores[o].posicion) !== -1; }),
                 cb: function(o) { fin({ objetivo: o }); } });
+            break;
+        case 41:
+            if (!partida.derrotoEnTurno) { showNotice('Solo puedes usarlo despues de derrotar a un Monstruo en este turno.'); return; }
+            elegirParImpar({ titulo: 'Potenciador 41', texto: 'Tiraste el dado: salio par o impar?', cb: function(r) { fin({ par: r === 'par' }); } });
+            break;
+        case 43:
+            var origenes = partida.hexes.filter(function(h) {
+                return h.tipo === 'calabozo' && h.desbloqueado && h.clase === 'recompensa' && h.numero === 3 && !oc[h.id];
+            }).map(function(h) { return h.id; });
+            elegirHex({ titulo: 'Elige una habitacion con un Potenciador', ids: origenes, vacio: 'No hay habitaciones reveladas con Potenciador (y desocupadas).',
+                cb: function(a) {
+                    elegirHex({ titulo: 'Elige la habitacion adyacente con la que intercambiar',
+                        ids: vecinosDe(buscarHex(a)).filter(function(h) { return h.tipo === 'calabozo' && h.clase !== 'guardian' && !oc[h.id]; }).map(function(h) { return h.id; }),
+                        cb: function(b) { fin({ a: a, b: b }); } });
+                } });
             break;
         case 48:
             if (j.manoBotin.length >= 2) { showNotice('Solo puedes usarlo con menos de 2 Cartas botin en la mano.'); return; }
@@ -361,8 +514,45 @@ function usarPot(n) {
                 candidatos: ops.filter(function(o) { return partida.jugadores[o].manoBotin.length; }),
                 cb: function(o) { fin({ objetivo: o, idx: Math.floor(Math.random() * 1000) }); } });
             break;
+        case 50:
+            elegirParImpar({ titulo: 'Potenciador 50', texto: 'Tiraste el dado: salio par o impar?',
+                cb: function(r) {
+                    if (r !== 'par') { fin({ par: false }); return; }
+                    elegirJugador({ titulo: 'Voltear el Potenciador de...', vacio: 'Ningun oponente tiene Potenciadores.',
+                        candidatos: ops.filter(function(o) { return partida.jugadores[o].manoPot.length; }),
+                        cb: function(o) {
+                            elegirCartas({ titulo: 'Potenciador de ' + nom(o), tipo: 'potenciador', cantidad: 1,
+                                items: partida.jugadores[o].manoPot.map(function(x) { return { n: x }; }),
+                                cb: function(nums) { fin({ par: true, objetivo: o, pot: Number(nums[0]) }); } });
+                        } });
+                } });
+            break;
+        case 54:
+            var top5 = partida.mazos.botin.slice(0, 5);
+            if (!top5.length) { showNotice('No quedan Cartas botin en el mazo.'); return; }
+            elegirOrden({ titulo: 'Primeras ' + top5.length + ' Cartas botin del mazo', texto: 'Toca las cartas en el orden en que quieres que queden (1 = la de arriba).',
+                tipo: 'botin', items: top5, cb: function(orden) { fin({ orden: orden }); } });
+            break;
+        case 55:
+            elegirParImpar({ titulo: 'Potenciador 55', texto: 'Tiraste el dado: salio par o impar?',
+                cb: function(r) {
+                    if (r !== 'par') { fin({ par: false }); return; }
+                    elegirJugador({ titulo: 'Robar las cartas Trampa de...', candidatos: ops,
+                        cb: function(o) { fin({ par: true, objetivo: o }); } });
+                } });
+            break;
+        case 57:
+            elegirParImpar({ titulo: 'Potenciador 57', texto: 'Tiraste el dado: salio par o impar?',
+                cb: function(r) {
+                    if (r !== 'par') { fin({ par: false }); return; }
+                    var adj = vecinosDe(buscarHex(j.posicion)).map(function(h) { return h.id; });
+                    elegirJugador({ titulo: 'Intercambiar lugar con...', vacio: 'No hay oponentes en habitaciones adyacentes.',
+                        candidatos: ops.filter(function(o) { return adj.indexOf(partida.jugadores[o].posicion) !== -1; }),
+                        cb: function(o) { fin({ par: true, objetivo: o }); } });
+                } });
+            break;
         case 60:
-            if (!combatePendienteMio()) { showNotice('Se usa cuando estas a punto de luchar contra un Monstruo.'); return; }
+            if (!combatePendienteMio() || partida.combate.tipo === 'duelo') { showNotice('Se usa cuando estas a punto de luchar contra un Monstruo.'); return; }
             elegirCartas({ titulo: 'Descarta una Carta botin', texto: 'El Monstruo pierde 3 de Nivel en esta batalla.',
                 tipo: 'botin', cantidad: 1, vacio: 'No tienes Cartas botin.',
                 items: j.manoBotin.map(function(x) { return { n: x }; }),
@@ -372,6 +562,16 @@ function usarPot(n) {
             fin({});
     }
 }
+
+// Potenciador 5 (pasivo): al elegir un hexagono oculto aparece la opcion "Potenciador"
+function usarPot5(hexId) {
+    var j = partida.jugadores[myId];
+    if (!j || !tienePot(j, 5)) return;
+    if (!esMiTurno()) { showNotice('Este Potenciador se usa durante tu turno.'); return; }
+    if (yaUsadoTurno(j, 'p5')) { showNotice('Ya usaste este Potenciador en este turno.'); return; }
+    ejecutarAccion('pot', 5, { hex: hexId }, function() { abrirVistazo(hexId); });
+}
+window.usarPot5 = usarPot5;
 window.usarPot = usarPot;
 
 function descartarPot(n) {
@@ -391,7 +591,7 @@ function abrirDescarteForzado() {
         texto: 'Solo puedes tener ' + maxPot(j) + '. Elige ' + k + ' para descartar; los demas te los quedas.',
         tipo: 'potenciador', cantidad: k, sinCancelar: true,
         items: j.manoPot.map(function(x) { return { n: x }; }),
-        cb: function(nums) { ejecutarAccion('desc', null, { nums: nums.map(Number) }); }
+        cb: function(nums) { ejecutarAccion('desc', null, { nums: nums.map(Number), forzado: true }); }
     });
     var marca = document.createElement('div');
     marca.className = 'descarte-forzado';
@@ -412,7 +612,7 @@ function crearBotonHabilidad() {
     if (!j) return null;
     var cfg = null;
     var combateMonstruo = false;
-    if (combatePendienteMio()) {
+    if (combatePendienteMio() && partida.combate.tipo !== 'duelo') {
         var hx = buscarHex(partida.combate.hexId);
         combateMonstruo = !!hx && getContenidoHex(hx).clase === 'monstruo';
     }
@@ -442,7 +642,7 @@ function crearBotonHabilidad() {
                 } };
             break;
         case 5:
-            cfg = { t: 'Teletransportar al inicio', ok: esMiTurno() && !partida.combate && !partida.ganador && !(j.usos && j.usos.h5),
+            cfg = { t: 'Teletransportar al inicio', ok: esMiTurno() && !partida.combate && !partida.ganador && !(j.usos && j.usos.h5) && !inicioOcupado(j),
                 fn: function() { confirmar('Heroe 5', 'Vuelves a tu punto inicial. Solo puedes hacerlo una vez en el juego.', 'Teletransportarme',
                     function() { ejecutarAccion('hab', 'h5', {}); }); } };
             break;
@@ -471,14 +671,14 @@ function abrirAcciones() {
     var j = partida.jugadores[myId];
     if (!j) { showNotice('Aun no tienes heroe.'); return; }
     abrirContenido(function(c) {
-        elTitulo(c, 'Cartas y habilidades');
+        elTitulo(c, 'Cartas');
         var h1 = document.createElement('h4'); h1.textContent = 'Cartas Botin (' + j.manoBotin.length + ')'; c.appendChild(h1);
         var m1 = document.createElement('div'); m1.className = 'mano-container'; c.appendChild(m1);
         pintarMano(m1, j.manoBotin, 'botin');
         var h2 = document.createElement('h4'); h2.textContent = 'Potenciadores (' + j.manoPot.length + '/' + maxPot(j) + ')'; c.appendChild(h2);
         var m2 = document.createElement('div'); m2.className = 'mano-container'; c.appendChild(m2);
         pintarMano(m2, j.manoPot, 'potenciador');
-        elTexto(c, 'Habilidad: ' + DATOS_HEROES[j.heroe]);
+        elTexto(c, 'Mazos: Botin ' + partida.mazos.botin.length + ' \u00b7 Potenciadores ' + partida.mazos.potenciadores.length + ' \u00b7 Reglas ' + partida.mazos.reglas.length);
         var hb = crearBotonHabilidad();
         if (hb) c.appendChild(hb);
         elBoton(c, 'Cerrar', 'btn-secondary', cerrarOVolver);
@@ -504,3 +704,77 @@ function renderRegistro() {
     });
 }
 window.renderRegistro = renderRegistro;
+
+// ===== TRAMPA: al moverte a un hexagono con trampa =====
+function abrirTrampa(hex, costo, previoId, retarPid) {
+    var j = partida.jugadores[myId];
+    abrirContenido(function(c) {
+        elTitulo(c, 'Trampa');
+        var n = hex.trampas || 1;
+        var t = 'Hay ' + n + (n === 1 ? ' trampa' : ' trampas') + ' en este hexagono.' +
+            (retarPid ? '\nRetar cuenta como movimiento: primero hay que resolver la trampa.' : '') +
+            '\nDesactivar: ' + (retarPid ? 'se quitan las trampas y sigue el duelo.' : 'te quedas en el hexagono y las trampas se quitan.') +
+            '\nRetroceder: vuelves al hexagono anterior y terminas de moverte' + (retarPid ? ' (no hay duelo).' : '.');
+        if (tienePot(j, 31)) t += '\nPotenciador #31: tira un 5 o mas para desarmar la trampa.';
+        elTexto(c, t);
+        elBoton(c, 'Desactivar', 'btn-primary', function() {
+            ocultarModal();
+            if (retarPid) hacerReto(retarPid, costo, true);
+            else hacerMovimiento(hex.id, costo, 'desactivar', previoId);
+        });
+        elBoton(c, 'Retroceder', 'btn-outline', function() { ocultarModal(); hacerMovimiento(hex.id, costo, 'retroceder', previoId); });
+        elBoton(c, 'Cancelar', 'btn-secondary', cerrarOVolver);
+    });
+}
+window.abrirTrampa = abrirTrampa;
+
+function inicioOcupado(j) {
+    var ini = null;
+    partida.hexes.forEach(function(h) { if (h.tipo === 'inicio' && h.duenoId === myId) ini = h; });
+    return !ini || !!hexesOcupadosPorOtros(myId)[ini.id];
+}
+
+// ===== RESPUESTAS PENDIENTES (Potenciadores 42 y 59) =====
+function pendienteMio() {
+    for (var i = 0; i < partida.pendientes.length; i++) {
+        if (partida.pendientes[i].pid === myId) return partida.pendientes[i];
+    }
+    return null;
+}
+function pendienteForzadoPendiente() { return !!(partida.iniciada && pendienteMio()); }
+window.pendienteForzadoPendiente = pendienteForzadoPendiente;
+
+function abrirPendiente() {
+    var pe = pendienteMio();
+    if (!pe) return;
+    if (seleccionHex) cancelarSeleccionHex(true);
+    function resolver(modo, objetivo) { ejecutarAccion('pend', pe.tipo, { modo: modo, objetivo: objetivo }); }
+    abrirContenido(function(c) {
+        var marca = document.createElement('div');
+        marca.className = 'pendiente-forzado';
+        marca.style.display = 'none';
+        c.appendChild(marca);
+        if (pe.tipo === 'p42') {
+            elTitulo(c, 'Potenciador 42');
+            elTexto(c, 'Perdiste 10 o mas de salud contra un Monstruo. Puedes tirar el dado: si sale par, un oponente y tu se reparten el dano (5 y 5).');
+            elBoton(c, 'Salio par', 'btn-primary', function() {
+                elegirJugador({ titulo: 'Compartir el dano con...', candidatos: otrosJugadores(),
+                    cb: function(o) { resolver('par', o); } });
+            });
+            elBoton(c, 'Salio impar', 'btn-outline', function() { resolver('impar'); });
+            elBoton(c, 'No quiero hacerlo', 'btn-secondary', function() { resolver('no'); });
+        } else {
+            elTitulo(c, 'Potenciador 59');
+            elTexto(c, 'Perdiste contra un Monstruo. Tira el dado: si sale par robas una Carta botin.');
+            elBoton(c, 'Salio par', 'btn-primary', function() { resolver('par'); });
+            elBoton(c, 'Salio impar', 'btn-outline', function() { resolver('impar'); });
+            elBoton(c, 'No quiero hacerlo', 'btn-secondary', function() { resolver('no'); });
+        }
+    });
+}
+function sincronizarPendiente() {
+    if (!pendienteForzadoPendiente() || descarteForzadoPendiente()) return;
+    if (modalVisible() && document.querySelector('#zoomContent .pendiente-forzado')) return;
+    abrirPendiente();
+}
+window.sincronizarPendiente = sincronizarPendiente;

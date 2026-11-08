@@ -178,11 +178,25 @@ function vecinosDe(hex) {
 
 // Un hexagono "libre" se puede atravesar para avanzar 2 casillas:
 // ya fue desbloqueado y no tiene monstruo activo.
+// Un hexagono "revelado" se puede pisar sin entrar: ya se descubrio (aunque tenga un
+// enemigo sin vencer). Los hexagonos ocultos solo se pueden Entrar.
+function hexRevelado(hex) {
+    return hex.tipo !== 'calabozo' || !!hex.desbloqueado;
+}
+
+// Fija la posicion de un jugador y recuerda el ultimo hexagono libre (completado)
+// que ocupo, al que vuelve si se retira de un combate.
+function fijarPosicion(j, hexIdNuevo) {
+    j.posicion = hexIdNuevo;
+    var h = buscarHex(hexIdNuevo);
+    if (h && hexLibre(h)) j.ultimoLibre = hexIdNuevo;
+}
+
 function hexLibre(hex) {
     return !!(hex.desbloqueado && hex.despejado);
 }
 
-// Opciones del jugador en su turno:
+// Opciones del jugador en su turno (caminar, retar y entrar se pueden hacer en cualquier orden):
 //  - mover:  { hexId: pasos } hexagonos LIBRES (desbloqueados y despejados) a los
 //            que puede caminar, pasando solo por hexagonos libres, con los pasos
 //            que le queden (maximo MAX_PASOS por turno).
@@ -190,36 +204,73 @@ function hexLibre(hex) {
 //            Entrar revela el enemigo y termina el movimiento del turno.
 var MAX_PASOS = 2;
 // Con el Potenciador 38 (u otros efectos) se permiten pasos extra en el turno
-function maxPasosTurno() { return MAX_PASOS + (partida.pasosExtra || 0); }
+function maxPasosTurno() {
+    var base = MAX_PASOS + (partida.pasosExtra || 0);
+    var tid = turnoActualId();
+    var j = tid ? partida.jugadores[tid] : null;
+    if (j && tienePot(j, 38)) base += 1;   // Potenciador 38 (pasivo): un hexagono adicional
+    return base;
+}
 
 function calcularOpciones(pid) {
-    var res = { mover: {}, entrar: {} };
+    var res = { mover: {}, entrar: {}, previo: {}, rival: {} };
     var j = partida.jugadores[pid];
-    if (!j || !partida.iniciada || partida.movido || partida.combate) return res;
+    if (!j || !partida.iniciada || partida.combate || partida.ganador) return res;
     var origen = buscarHex(j.posicion);
     if (!origen) return res;
 
+    var ocupante = {};
+    for (var op in partida.jugadores) {
+        if (op !== pid) ocupante[partida.jugadores[op].posicion] = op;
+    }
+
+    // Caminar: por hexagonos revelados (aunque no esten completados), hasta los pasos que
+    // queden. Un hexagono ocupado solo se puede alcanzar retando a su ocupante, y uno con
+    // trampa solo se puede elegir como destino; ninguno de los dos se atraviesa.
     var restantes = maxPasosTurno() - (partida.pasos || 0);
-    var dist = {};
-    dist[origen.id] = 0;
-    var cola = [origen];
-    while (cola.length) {
-        var cur = cola.shift();
-        var d = dist[cur.id];
-        if (d >= restantes) continue;
-        vecinosDe(cur).forEach(function(v) {
-            if (dist[v.id] === undefined && hexLibre(v)) {
-                dist[v.id] = d + 1;
-                cola.push(v);
-            }
+    if (restantes > 0) {
+        var dist = {};
+        dist[origen.id] = 0;
+        var cola = [origen];
+        while (cola.length) {
+            var cur = cola.shift();
+            var d = dist[cur.id];
+            if (d >= restantes) continue;
+            vecinosDe(cur).forEach(function(v) {
+                if (dist[v.id] === undefined && hexRevelado(v)) {
+                    dist[v.id] = d + 1;
+                    res.previo[v.id] = cur.id;
+                    if (ocupante[v.id]) res.rival[v.id] = { pid: ocupante[v.id], costo: d + 1 };
+                    else if (!(v.trampas > 0)) cola.push(v);
+                }
+            });
+        }
+        // Potenciador 17 (pasivo): saltar sobre una habitacion adyacente (aunque este oculta,
+        // ocupada o con trampa) hasta una revelada. Cuesta los 2 pasos.
+        if (tienePot(j, 17) && restantes >= 2) {
+            vecinosDe(origen).forEach(function(v1) {
+                vecinosDe(v1).forEach(function(v2) {
+                    if (v2.id === origen.id || dist[v2.id] !== undefined) return;
+                    if (!hexRevelado(v2) || v2.clase === 'guardian') return;
+                    dist[v2.id] = 2;
+                    res.previo[v2.id] = v1.id;
+                    if (ocupante[v2.id]) res.rival[v2.id] = { pid: ocupante[v2.id], costo: 2 };
+                });
+            });
+        }
+        for (var id in dist) {
+            if (id !== origen.id && !res.rival[id]) res.mover[id] = dist[id];
+        }
+    }
+
+    // Entrar (una vez por turno, antes o despues de caminar): un hexagono oculto o
+    // revelado-sin-completar que este junto a ti, o el hexagono revelado donde ya estas.
+    if (!partida.movido) {
+        vecinosDe(origen).concat([origen]).forEach(function(v) {
+            if (v.tipo !== 'calabozo' || v.despejado || ocupante[v.id]) return;
+            res.entrar[v.id] = true;
         });
     }
-    for (var id in dist) {
-        if (id !== origen.id) res.mover[id] = dist[id];
-    }
-    vecinosDe(origen).forEach(function(v) {
-        if (v.tipo === 'calabozo' && !v.desbloqueado) res.entrar[v.id] = true;
-    });
     return res;
 }
 

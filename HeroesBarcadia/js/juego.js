@@ -42,7 +42,9 @@ function nuevaPartidaVacia(version) {
         descartePot: [],
         registro: [],
         pasosExtra: 0,
-        luchoEnTurno: false
+        luchoEnTurno: false,
+        derrotoEnTurno: false,
+        pendientes: []
     };
 }
 var partida = nuevaPartidaVacia();
@@ -59,12 +61,16 @@ function aplicarPartida(p) {
     if (!partida.descarteBotin) partida.descarteBotin = [];
     if (!partida.descartePot) partida.descartePot = [];
     if (!partida.registro) partida.registro = [];
+    if (!partida.pendientes) partida.pendientes = [];
     for (var pid in partida.jugadores) {
         var jj = partida.jugadores[pid];
         if (!jj.manoBotin) jj.manoBotin = [];
         if (!jj.manoPot) jj.manoPot = [];
         if (!jj.usos) jj.usos = {};
         if (!jj.usadas) jj.usadas = {};
+        if (!jj.bonos) jj.bonos = {};
+        if (!jj.volteados) jj.volteados = {};
+        if (!jj.ultimoLibre) jj.ultimoLibre = jj.posicion;
     }
     gameStarted = !!partida.iniciada;
 }
@@ -121,8 +127,8 @@ function iniciarJuego() {
             if (hexes[h].tipo === 'inicio' && hexes[h].duenoId === orden[i]) { inicio = hexes[h]; break; }
         }
         jugadores[orden[i]] = {
-            heroe: heroes[i], posicion: inicio ? inicio.id : hexId(0, 0),
-            vida: VIDA_INICIAL_HEROE, manoBotin: [], manoPot: [], usos: {}, usadas: {}
+            heroe: heroes[i], posicion: inicio ? inicio.id : hexId(0, 0), ultimoLibre: inicio ? inicio.id : hexId(0, 0),
+            vida: VIDA_INICIAL_HEROE, manoBotin: [], manoPot: [], usos: {}, usadas: {}, bonos: {}, volteados: {}
         };
     }
 
@@ -144,7 +150,9 @@ function iniciarJuego() {
         descartePot: [],
         registro: [],
         pasosExtra: 0,
-        luchoEnTurno: false
+        luchoEnTurno: false,
+        derrotoEnTurno: false,
+        pendientes: []
     });
     gameInitiator = myId;
 
@@ -157,12 +165,29 @@ window.iniciarJuego = iniciarJuego;
 // ===== MOVIMIENTO =====
 // Fase 1: caminar hasta MAX_PASOS hexagonos libres. Fase 2: "Entrar" a un
 // hexagono adyacente sin explorar (revela el enemigo y abre el combate).
-function aplicarMovimiento(pid, hexIdDestino, costo, version) {
+// modo: solo si el hexagono tiene trampa -> 'desactivar' (te quedas ahi y la trampa
+// se quita) o 'retroceder' (vuelves al hexagono anterior y se acaba tu movimiento).
+function aplicarMovimiento(pid, hexIdDestino, costo, version, modo, previoId) {
     var hex = buscarHex(hexIdDestino);
     var j = partida.jugadores[pid];
     if (!hex || !j) return false;
-    j.posicion = hex.id;
-    partida.pasos = (partida.pasos || 0) + (costo || 1);
+    if ((hex.trampas || 0) > 0 && modo === 'retroceder') {
+        if (previoId && buscarHex(previoId)) fijarPosicion(j, previoId);
+        partida.pasos = maxPasosTurno();
+        logReg(nom(pid) + ' retrocede ante una trampa.');
+    } else {
+        if ((hex.trampas || 0) > 0) {
+            hex.trampas = 0;
+            logReg(nom(pid) + ' desactiva las trampas del hexagono.');
+        }
+        fijarPosicion(j, hex.id);
+        partida.pasos = (partida.pasos || 0) + (costo || 1);
+        // Potenciador 44: usar un Portal Magico (portal o central) te sana 5
+        if (tienePot(j, 44) && (hex.clase === 'portal' || hex.tipo === 'centro')) {
+            curar(pid, 5, true);
+            logReg(nom(pid) + ' usa un Portal Magico: Potenciador #44 (+5 salud).');
+        }
+    }
     if (version) partida.version = version;
     return true;
 }
@@ -171,7 +196,7 @@ function robarRecompensa(j, nBotin, nPot) {
     var cb = partida.mazos.botin.splice(0, nBotin);
     var cp = partida.mazos.potenciadores.splice(0, nPot);
     j.manoBotin = (j.manoBotin || []).concat(cb);
-    j.manoPot = (j.manoPot || []).concat(cp);
+    cp.forEach(function(n) { recibirPot(j, n); });
     return { botin: cb, potenciadores: cp };
 }
 
@@ -182,8 +207,8 @@ function aplicarEntrar(pid, hexIdDestino, version) {
     var j = partida.jugadores[pid];
     if (!hex || !j) return false;
     var cont = getContenidoHex(hex);
-    var origenId = j.posicion;
-    hex.desbloqueado = true;
+    var origenId = j.ultimoLibre || j.posicion;   // ultimo hexagono libre que ocupo
+    hex.desbloqueado = true;                      // una vez revelado, se queda revelado
     j.posicion = hex.id;
     partida.movido = true;
     var cartas = { botin: [], potenciadores: [] };
@@ -192,8 +217,13 @@ function aplicarEntrar(pid, hexIdDestino, version) {
         partida.luchoEnTurno = true;
     } else {
         hex.despejado = true;
+        fijarPosicion(j, hex.id);
         cartas = robarRecompensa(j, cont.botin, cont.potenciadores);
         partida.combate = null;
+        if (tienePot(j, 44) && cont.clase === 'portal') {
+            curar(pid, 5, true);
+            logReg(nom(pid) + ' usa un Portal Magico: Potenciador #44 (+5 salud).');
+        }
     }
     if (version) partida.version = version;
     return { contenido: cont, combate: cont.combate, botin: cartas.botin, potenciadores: cartas.potenciadores };
@@ -204,25 +234,91 @@ function validarMiTurno() {
     if (partida.ganador) { showNotice('La partida ya termino.'); return false; }
     if (!esMiTurno()) { showNotice('No es tu turno.'); return false; }
     if (partida.combate) { showNotice('Primero elige Atacar o Retirada.'); return false; }
-    if (partida.movido) { showNotice('Ya entraste a un hexagono. Pasa turno cuando termines.'); return false; }
     return true;
 }
 
 function moverJugador(hexIdDestino) {
     if (!validarMiTurno()) return;
-    var costo = calcularOpciones(myId).mover[hexIdDestino];
+    var op = calcularOpciones(myId);
+    if (op.rival[hexIdDestino]) { retarJugador(hexIdDestino); return; }
+    var costo = op.mover[hexIdDestino];
     if (!costo) { showNotice('Solo puedes moverte a hexagonos libres, hasta ' + maxPasosTurno() + ' pasos por turno.'); return; }
-    aplicarMovimiento(myId, hexIdDestino, costo, siguienteVersion());
-    broadcastMover(hexIdDestino, costo, partida.version);
-    actualizarUI();
-    saveSession();
+    var hex = buscarHex(hexIdDestino);
+    if ((hex.trampas || 0) > 0) { abrirTrampa(hex, costo, op.previo[hexIdDestino]); return; }
+    hacerMovimiento(hexIdDestino, costo, null, null);
 }
 window.moverJugador = moverJugador;
 
+// Retar a duelo al jugador que ocupa el hexagono destino. Solo cuenta como movimiento
+// (gasta los pasos hasta alli) y se resuelve con Atacar / Retirarse, como un monstruo.
+function aplicarRetar(pid, rivalId, costo, version, desactivar) {
+    var j = partida.jugadores[pid], rj = partida.jugadores[rivalId];
+    if (!j || !rj || pid === rivalId) return false;
+    var hr = buscarHex(rj.posicion);
+    if (desactivar && hr && (hr.trampas || 0) > 0) {   // la trampa se resuelve antes del duelo
+        hr.trampas = 0;
+        logReg(nom(pid) + ' desactiva las trampas antes de retar.');
+    }
+    partida.combate = { pid: pid, tipo: 'duelo', rivalId: rivalId, hexId: rj.posicion, origenId: j.posicion, costo: costo || 1, nivelMod: 0 };
+    logReg(nom(pid) + ' reta a duelo a ' + nom(rivalId) + '.');
+    if (version) partida.version = version;
+    return true;
+}
+
+function retarJugador(hexIdDestino) {
+    if (!validarMiTurno()) return;
+    var op = calcularOpciones(myId);
+    var info = op.rival[hexIdDestino];
+    if (!info) { showNotice('No puedes retar a nadie en ese hexagono.'); return; }
+    var hex = buscarHex(hexIdDestino);
+    // Retar cuenta como movimiento: primero se resuelve la trampa del hexagono, si la hay
+    if ((hex.trampas || 0) > 0) { abrirTrampa(hex, info.costo, op.previo[hexIdDestino], info.pid); return; }
+    hacerReto(info.pid, info.costo, false);
+}
+window.retarJugador = retarJugador;
+
+function hacerReto(rivalId, costo, desactivar) {
+    aplicarRetar(myId, rivalId, costo, siguienteVersion(), desactivar);
+    broadcastRetar(rivalId, costo, desactivar, partida.version);
+    actualizarUI();   // abre el duelo (Atacar / Retirarse)
+    saveSession();
+}
+window.hacerReto = hacerReto;
+
+// Hexagono libre y desocupado mas cercano a uno dado (por si el de origen fue ocupado mientras tanto)
+function hexLibreDesocupadoCerca(origenId, pid) {
+    var oc = {};
+    for (var p in partida.jugadores) if (p !== pid) oc[partida.jugadores[p].posicion] = true;
+    var o = buscarHex(origenId);
+    if (o && !oc[o.id]) return o.id;
+    var visto = {}, cola = o ? [o] : [];
+    if (o) visto[o.id] = true;
+    while (cola.length) {
+        var cur = cola.shift();
+        var vs = vecinosDe(cur);
+        for (var i = 0; i < vs.length; i++) {
+            if (visto[vs[i].id]) continue;
+            visto[vs[i].id] = true;
+            if (hexLibre(vs[i]) && !oc[vs[i].id]) return vs[i].id;
+            cola.push(vs[i]);
+        }
+    }
+    return hexId(0, 0);
+}
+
+function hacerMovimiento(hexIdDestino, costo, modo, previoId) {
+    aplicarMovimiento(myId, hexIdDestino, costo, siguienteVersion(), modo, previoId);
+    broadcastMover(hexIdDestino, costo, modo, previoId, partida.version);
+    actualizarUI();
+    saveSession();
+}
+window.hacerMovimiento = hacerMovimiento;
+
 function entrarHex(hexIdDestino) {
     if (!validarMiTurno()) return;
+    if (partida.movido) { showNotice('Ya entraste a un hexagono en este turno.'); return; }
     if (!calcularOpciones(myId).entrar[hexIdDestino]) {
-        showNotice('Solo puedes entrar a un hexagono sin explorar que sea adyacente a donde estas.');
+        showNotice('Solo puedes entrar a un hexagono sin completar que sea adyacente a donde estas (o al hexagono donde ya estas).');
         return;
     }
     var r = aplicarEntrar(myId, hexIdDestino, siguienteVersion());
@@ -245,6 +341,7 @@ function aplicarPasarTurno(version) {
     partida.pasos = 0;
     partida.pasosExtra = 0;
     partida.luchoEnTurno = false;
+    partida.derrotoEnTurno = false;
     efectosInicioTurno(turnoActualId());
     if (version) partida.version = version;
     return true;
@@ -264,8 +361,13 @@ function pasarTurno() {
     }
     if (c) {
         // El jugador en combate no responde (p. ej. desconectado): el anfitrion lo retira.
+        var duelando = c.tipo === 'duelo';
         aplicarRetirada(siguienteVersion());
         broadcastRetirada(partida.version);
+        if (duelando) {   // en un duelo la retirada no pasa el turno: se pasa aparte
+            aplicarPasarTurno(siguienteVersion());
+            broadcastPasar(partida.version);
+        }
     } else {
         aplicarPasarTurno(siguienteVersion());
         broadcastPasar(partida.version);
@@ -279,12 +381,28 @@ window.pasarTurno = pasarTurno;
 function aplicarAtacar(version) {
     var c = partida.combate;
     if (!c) return false;
+    if (c.tipo === 'duelo') {
+        // Gana el retador: intercambian de lugar y el perdedor (el retado) recibe 10 de dano
+        var cj = partida.jugadores[c.pid], rj = partida.jugadores[c.rivalId];
+        partida.combate = null;
+        if (!cj || !rj) return false;
+        var destino = rj.posicion;
+        fijarPosicion(rj, cj.posicion);   // el retado ocupa el hexagono del retador
+        fijarPosicion(cj, destino);
+        partida.pasos = (partida.pasos || 0) + (c.costo || 1);
+        aplicarDano(c.rivalId, 10);
+        logReg(nom(c.pid) + ' gana el duelo: intercambia lugar con ' + nom(c.rivalId) + ', que recibe 10 de dano.');
+        if (version) partida.version = version;
+        return { duelo: true, ganador: c.pid, perdedor: c.rivalId };
+    }
     var hex = buscarHex(c.hexId);
     var j = partida.jugadores[c.pid];
     if (!hex || !j) { partida.combate = null; return false; }
     var cont = getContenidoHex(hex);
     hex.despejado = true;
+    fijarPosicion(j, hex.id);
     var cartas = robarRecompensa(j, cont.botin, cont.potenciadores);
+    if (cont.clase === 'monstruo') partida.derrotoEnTurno = true;
     if (cont.clase === 'guardian') partida.ganador = c.pid;   // vencer al Guardian gana el juego
     partida.combate = null;
     if (version) partida.version = version;
@@ -294,20 +412,34 @@ function aplicarAtacar(version) {
 function aplicarRetirada(version) {
     var c = partida.combate;
     if (!c) return false;
+    if (c.tipo === 'duelo') {
+        // Pierde el retador: recibe 10 de dano, no hay intercambio y el turno sigue
+        partida.combate = null;
+        if (partida.jugadores[c.pid]) aplicarDano(c.pid, 10);
+        partida.pasos = (partida.pasos || 0) + (c.costo || 1);
+        logReg(nom(c.pid) + ' se retira del duelo con ' + nom(c.rivalId) + ' y recibe 10 de dano.');
+        if (version) partida.version = version;
+        return { dano: 10, duelo: true };
+    }
     var hex = buscarHex(c.hexId);
     var j = partida.jugadores[c.pid];
     var dano = 0;
+    var cont = null;
     if (hex) {
-        var cont = getContenidoHex(hex);
+        cont = getContenidoHex(hex);
         dano = cont.dano;
         // Potenciador 1: el dano recibido en batalla contra un Jefe se reduce en 5
         if (cont.clase === 'jefe' && j && tienePot(j, 1)) dano = Math.max(0, dano - 5);
-        hex.desbloqueado = false;   // el hexagono vuelve a ocultarse
-        hex.despejado = false;
+        hex.despejado = false;   // la habitacion queda revelada, pero hay que entrar y vencer para la recompensa
     }
     if (j) {
         aplicarDano(c.pid, dano);
-        j.posicion = buscarHex(c.origenId) ? c.origenId : hexId(0, 0);
+        fijarPosicion(j, hexLibreDesocupadoCerca(c.origenId, c.pid));
+        // Potenciadores 42 y 59: tras perder contra un Monstruo, el jugador responde si salio par o impar
+        if (cont && cont.clase === 'monstruo') {
+            if (tienePot(j, 42) && dano >= 10) partida.pendientes.push({ pid: c.pid, tipo: 'p42' });
+            if (tienePot(j, 59)) partida.pendientes.push({ pid: c.pid, tipo: 'p59' });
+        }
     }
     partida.combate = null;
     aplicarPasarTurno(version);
@@ -322,6 +454,15 @@ window.getVida = getVida;
 function atacar() {
     var c = partida.combate;
     if (!c || c.pid !== myId) return;
+    if (c.tipo === 'duelo') {
+        var rd = aplicarAtacar(siguienteVersion());
+        broadcastAtacar(partida.version);
+        cerrarZoom();
+        actualizarUI();
+        saveSession();
+        if (rd) showNotice('Ganaste el duelo: intercambias lugar con ' + nom(rd.perdedor) + ', que recibe 10 de dano.', 'Duelo ganado');
+        return;
+    }
     var hex = buscarHex(c.hexId);
     var j = partida.jugadores[myId];
     if (!hex || !j) return;
@@ -348,7 +489,10 @@ function retirarse() {
     actualizarUI();
     saveSession();
     if (r) {
-        showNotice('Te retiraste y recibiste ' + r.dano + ' de dano. Vuelves a tu ultimo hexagono libre y pasa el turno.', 'Retirada');
+        showNotice(r.duelo
+            ? 'Perdiste el duelo y recibes ' + r.dano + ' de dano. No hay intercambio y tu turno sigue.'
+            : 'Te retiraste y recibiste ' + r.dano + ' de dano. Vuelves a tu ultimo hexagono libre y pasa el turno.',
+            r.duelo ? 'Duelo perdido' : 'Retirada');
     }
 }
 window.atacar = atacar;
@@ -378,7 +522,9 @@ window.sacarRegla = sacarRegla;
 // Determinista: cada cliente lo aplica por su cuenta al recibir "remove".
 function quitarJugadorDeJuego(pid) {
     if (!partida.jugadores[pid]) return;
-    if (partida.combate && partida.combate.pid === pid) {
+    if (partida.combate && partida.combate.tipo === 'duelo') {
+        if (partida.combate.pid === pid || partida.combate.rivalId === pid) partida.combate = null;
+    } else if (partida.combate && partida.combate.pid === pid) {
         var hc = buscarHex(partida.combate.hexId);
         if (hc) { hc.desbloqueado = false; hc.despejado = false; }
         partida.combate = null;
@@ -435,12 +581,12 @@ function actualizarUI() {
 
     renderizarTablero();
     renderizarMiHeroe();
-    renderizarMisCartas();
     renderLeaderboard();
     if (typeof renderRegistro === 'function') renderRegistro();
     if (typeof sincronizarModalCombate === 'function') sincronizarModalCombate();
     if (typeof sincronizarVictoria === 'function') sincronizarVictoria();
     if (typeof sincronizarDescarte === 'function') sincronizarDescarte();
+    if (typeof sincronizarPendiente === 'function') sincronizarPendiente();
 }
 window.actualizarUI = actualizarUI;
 

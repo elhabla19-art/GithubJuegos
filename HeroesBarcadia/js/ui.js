@@ -73,9 +73,27 @@ function renderizarTablero() {
             }));
         }
 
+        // Trampas: puntos naranjas en hexagonos revelados
+        var nt = h.trampas || 0;
+        if (nt > 0 && (h.tipo !== 'calabozo' || h.desbloqueado)) {
+            for (var ti = 0; ti < nt; ti++) {
+                var tp = svgEl('circle', {
+                    'class': 'trampa',
+                    cx: c.x - HEX_SIZE * 0.22 + ti * HEX_SIZE * 0.22,
+                    cy: c.y - HEX_SIZE * 0.55,
+                    r: HEX_SIZE * 0.1
+                });
+                var tt = svgEl('title', {});
+                tt.textContent = 'Trampa';
+                tp.appendChild(tt);
+                g.appendChild(tp);
+            }
+        }
+
         // Capa de interaccion / resaltado
         var clases = 'hex-hit';
-        if (opciones.mover[h.id] === 1) clases += ' alc1';
+        if (opciones.rival && opciones.rival[h.id]) clases += ' duelo';
+        else if (opciones.mover[h.id] === 1) clases += ' alc1';
         else if (opciones.mover[h.id] === 2) clases += ' alc2';
         else if (opciones.entrar[h.id]) clases += ' entrar';
         if (h.id === miPos) clases += ' actual';
@@ -125,6 +143,7 @@ function renderizarMiHeroe() {
     var movEl = document.getElementById('movimientoDisplay');
     if (!cont) return;
     cont.innerHTML = '';
+    cont.className = 'hero-panel';
 
     var turnoId = turnoActualId();
     if (turnoEl) {
@@ -146,11 +165,10 @@ function renderizarMiHeroe() {
             movEl.textContent = '';
         } else if (partida.combate && partida.combate.pid === myId) {
             movEl.textContent = 'Elige Atacar o Retirada.';
-        } else if (partida.movido) {
-            movEl.textContent = 'Ya entraste a un hexagono. Pulsa "Pasar turno" cuando termines.';
         } else {
             var rest = maxPasosTurno() - (partida.pasos || 0);
-            movEl.textContent = 'Pasos libres: ' + rest + '. Camina por hexagonos libres (amarillo 1 paso, verde 2) y luego entra a uno sin explorar junto a ti (rojo).';
+            movEl.textContent = 'Pasos libres: ' + rest + (partida.movido ? ' \u00b7 Ya entraste a un hexagono.' : ' \u00b7 Aun puedes entrar a un hexagono (rojo).') +
+                ' Puedes caminar y entrar en el orden que quieras.';
         }
     }
 
@@ -163,6 +181,31 @@ function renderizarMiHeroe() {
         return;
     }
 
+    // Vida: 10 cuadros del rojo al verde; los perdidos quedan como silueta punteada
+    var vida = getVida(j);
+    var barra = document.createElement('div');
+    barra.className = 'vida-cuadros';
+    barra.title = 'Vida ' + vida + ' / ' + VIDA_INICIAL_HEROE;
+    for (var i = 0; i < 10; i++) {
+        var pct = Math.max(0, Math.min(1, (vida - i * 10) / 10));
+        var q = document.createElement('div');
+        q.className = 'vida-cuadro' + (pct === 0 ? ' vacio' : '');
+        q.style.setProperty('--c', 'hsl(' + Math.round(i * 12) + ', 78%, 46%)');
+        if (pct > 0) {
+            var rel = document.createElement('div');
+            rel.className = 'vida-cuadro-relleno';
+            rel.style.width = (pct * 100) + '%';
+            q.appendChild(rel);
+        }
+        barra.appendChild(q);
+    }
+    cont.appendChild(barra);
+    var num = document.createElement('div');
+    num.className = 'vida-num';
+    num.textContent = vida + ' / ' + VIDA_INICIAL_HEROE;
+    cont.appendChild(num);
+
+    // Carta del heroe
     var wrap = document.createElement('div');
     wrap.className = 'my-card-wrapper hero-wrapper' + (esMiTurno() ? ' activa' : '');
     var imgBox = document.createElement('div');
@@ -172,34 +215,8 @@ function renderizarMiHeroe() {
     img.src = getImagenHeroe(j.heroe);
     img.alt = getNombreHeroe(j.heroe);
     imgBox.appendChild(img);
-    var num = document.createElement('div');
-    num.className = 'mini-number';
-    num.textContent = getNombreHeroe(j.heroe);
-    imgBox.appendChild(num);
     wrap.appendChild(imgBox);
-    var pos = buscarHex(j.posicion);
-    var info = document.createElement('div');
-    info.className = 'mini-vida';
-    info.textContent = pos ? (pos.tipo === 'centro' ? 'En el portal' : pos.tipo === 'inicio' ? 'En un inicio' : 'En el calabozo') : '';
-    wrap.appendChild(info);
     cont.appendChild(wrap);
-
-    // Vida, botin y potenciadores
-    var vida = getVida(j);
-    var stats = document.createElement('div');
-    stats.className = 'hero-stats';
-    stats.innerHTML =
-        '<div class="vida-texto">Vida ' + vida + ' / ' + VIDA_INICIAL_HEROE + '</div>' +
-        '<div class="vida-barra"><div class="vida-relleno" style="width:' + Math.max(0, Math.min(100, vida)) + '%"></div></div>' +
-        '<div class="hero-recompensas">Botin: <b>' + (j.manoBotin || []).length + '</b> \u00b7 Potenciadores: <b>' + (j.manoPot || []).length + '</b></div>';
-    cont.appendChild(stats);
-
-    var hab = document.createElement('div');
-    hab.className = 'hero-habilidad';
-    hab.textContent = 'Habilidad: ' + DATOS_HEROES[j.heroe];
-    cont.appendChild(hab);
-    var bh = crearBotonHabilidad();
-    if (bh) { bh.style.marginTop = '6px'; cont.appendChild(bh); }
 }
 
 // ===== MIS CARTAS (manos de Botin y Potenciadores) y mazos =====
@@ -230,19 +247,14 @@ function pintarMano(cont, mano, tipo) {
             badge.textContent = '\u00d7' + cuenta[n];
             d.appendChild(badge);
         }
+        if (tipo === 'potenciador' && partida.jugadores[myId]) {
+            var est = estadoPot(partida.jugadores[myId], n);
+            var ins = document.createElement('div');
+            ins.className = 'pot-estado ' + est;
+            ins.textContent = est === 'activo' ? 'ON' : (est === 'usado' ? '\u2713' : (est === 'volteado' ? '\u2715' : '\u25b6'));
+            d.appendChild(ins);
+        }
         d.addEventListener('click', function() { abrirZoomCarta(tipo, n, true); });
         cont.appendChild(d);
     });
-}
-
-function renderizarMisCartas() {
-    var j = partida.jugadores[myId];
-    pintarMano(document.getElementById('my-botin-container'), j ? (j.manoBotin || []) : [], 'botin');
-    pintarMano(document.getElementById('my-pot-container'), j ? (j.manoPot || []) : [], 'potenciador');
-    var mz = document.getElementById('mazosDisplay');
-    if (mz) {
-        mz.textContent = partida.iniciada
-            ? 'Mazos \u00b7 Botin ' + partida.mazos.botin.length + ' \u00b7 Potenciadores ' + partida.mazos.potenciadores.length + ' \u00b7 Reglas ' + partida.mazos.reglas.length
-            : '';
-    }
 }
