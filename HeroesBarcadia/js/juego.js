@@ -44,7 +44,11 @@ function nuevaPartidaVacia(version) {
         pasosExtra: 0,
         luchoEnTurno: false,
         derrotoEnTurno: false,
-        pendientes: []
+        pendientes: [],
+        ultimoBotin: null,
+        ultimaRetirada: null,
+        ultimaEntrada: null,
+        potUbic: {}
     };
 }
 var partida = nuevaPartidaVacia();
@@ -62,6 +66,7 @@ function aplicarPartida(p) {
     if (!partida.descartePot) partida.descartePot = [];
     if (!partida.registro) partida.registro = [];
     if (!partida.pendientes) partida.pendientes = [];
+    if (!partida.potUbic) partida.potUbic = {};
     for (var pid in partida.jugadores) {
         var jj = partida.jugadores[pid];
         if (!jj.manoBotin) jj.manoBotin = [];
@@ -152,7 +157,11 @@ function iniciarJuego() {
         pasosExtra: 0,
         luchoEnTurno: false,
         derrotoEnTurno: false,
-        pendientes: []
+        pendientes: [],
+        ultimoBotin: null,
+        ultimaRetirada: null,
+        ultimaEntrada: null,
+        potUbic: {}
     });
     gameInitiator = myId;
 
@@ -171,6 +180,7 @@ function aplicarMovimiento(pid, hexIdDestino, costo, version, modo, previoId) {
     var hex = buscarHex(hexIdDestino);
     var j = partida.jugadores[pid];
     if (!hex || !j) return false;
+    partida.ultimoBotin = null; partida.ultimaRetirada = null;
     if ((hex.trampas || 0) > 0 && modo === 'retroceder') {
         if (previoId && buscarHex(previoId)) fijarPosicion(j, previoId);
         partida.pasos = maxPasosTurno();
@@ -208,6 +218,8 @@ function aplicarEntrar(pid, hexIdDestino, version) {
     if (!hex || !j) return false;
     var cont = getContenidoHex(hex);
     var origenId = j.ultimoLibre || j.posicion;   // ultimo hexagono libre que ocupo
+    partida.ultimoBotin = null; partida.ultimaRetirada = null;
+    salirDeHex(j, hex.id);
     hex.desbloqueado = true;                      // una vez revelado, se queda revelado
     j.posicion = hex.id;
     partida.movido = true;
@@ -254,6 +266,7 @@ window.moverJugador = moverJugador;
 function aplicarRetar(pid, rivalId, costo, version, desactivar) {
     var j = partida.jugadores[pid], rj = partida.jugadores[rivalId];
     if (!j || !rj || pid === rivalId) return false;
+    partida.ultimoBotin = null; partida.ultimaRetirada = null;
     var hr = buscarHex(rj.posicion);
     if (desactivar && hr && (hr.trampas || 0) > 0) {   // la trampa se resuelve antes del duelo
         hr.trampas = 0;
@@ -335,6 +348,7 @@ window.entrarHex = entrarHex;
 function aplicarPasarTurno(version) {
     if (!partida.iniciada || !partida.orden.length) return false;
     efectosFinTurno(turnoActualId());
+    partida.ultimoBotin = null; partida.ultimaRetirada = null;
     partida.turnoIdx = (partida.turnoIdx + 1) % partida.orden.length;
     if (partida.turnoIdx === 0) partida.ronda++;
     partida.movido = false;
@@ -402,14 +416,17 @@ function aplicarAtacar(version) {
     hex.despejado = true;
     fijarPosicion(j, hex.id);
     var cartas = robarRecompensa(j, cont.botin, cont.potenciadores);
-    if (cont.clase === 'monstruo') partida.derrotoEnTurno = true;
+    if (cont.clase === 'monstruo') {
+        partida.derrotoEnTurno = true;
+        if (j.goblin) { j.goblin = false; logReg(nom(c.pid) + ' derrota a un Monstruo y rompe la maldicion Goblin.'); }
+    }
     if (cont.clase === 'guardian') partida.ganador = c.pid;   // vencer al Guardian gana el juego
     partida.combate = null;
     if (version) partida.version = version;
     return { enemigo: cont, botin: cartas.botin, potenciadores: cartas.potenciadores, ganoJuego: cont.clase === 'guardian' };
 }
 
-function aplicarRetirada(version) {
+function aplicarRetirada(version, redirigirA) {
     var c = partida.combate;
     if (!c) return false;
     if (c.tipo === 'duelo') {
@@ -425,6 +442,7 @@ function aplicarRetirada(version) {
     var j = partida.jugadores[c.pid];
     var dano = 0;
     var cont = null;
+    var snap = null;
     if (hex) {
         cont = getContenidoHex(hex);
         dano = cont.dano;
@@ -433,16 +451,25 @@ function aplicarRetirada(version) {
         hex.despejado = false;   // la habitacion queda revelada, pero hay que entrar y vencer para la recompensa
     }
     if (j) {
-        aplicarDano(c.pid, dano);
+        var danado = (redirigirA && partida.jugadores[redirigirA]) ? redirigirA : c.pid;   // Botin 33: otro jugador recibe el dano
+        if (cont && (cont.clase === 'monstruo' || cont.clase === 'jefe')) {
+            // Para el Botin 11 (ignorar el resultado de la batalla perdida)
+            snap = { pid: c.pid, hexId: c.hexId, origenId: c.origenId, nivelMod: c.nivelMod || 0,
+                pos: j.posicion, ultimoLibre: j.ultimoLibre, pasos: partida.pasos, movido: partida.movido,
+                turnoIdx: partida.turnoIdx, ronda: partida.ronda, danado: danado,
+                vidaDanado: getVida(partida.jugadores[danado]), ventaja: !!c.ventaja, desventaja: !!c.desventaja };
+        }
+        aplicarDano(danado, dano);
         fijarPosicion(j, hexLibreDesocupadoCerca(c.origenId, c.pid));
         // Potenciadores 42 y 59: tras perder contra un Monstruo, el jugador responde si salio par o impar
-        if (cont && cont.clase === 'monstruo') {
+        if (cont && cont.clase === 'monstruo' && danado === c.pid) {
             if (tienePot(j, 42) && dano >= 10) partida.pendientes.push({ pid: c.pid, tipo: 'p42' });
             if (tienePot(j, 59)) partida.pendientes.push({ pid: c.pid, tipo: 'p59' });
         }
     }
     partida.combate = null;
     aplicarPasarTurno(version);
+    partida.ultimaRetirada = snap;
     return { dano: dano };
 }
 
@@ -508,7 +535,7 @@ function aplicarSacarRegla(version) {
 }
 
 function sacarRegla() {
-    if (!partida.iniciada || !soyAnfitrionOLocal()) return;
+    if (!partida.iniciada) return;
     if (!partida.mazos.reglas.length) { showNotice('No quedan cartas en el mazo de Reglas.'); return; }
     aplicarSacarRegla(siguienteVersion());
     broadcastRegla(partida.version);

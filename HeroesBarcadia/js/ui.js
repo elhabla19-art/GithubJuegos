@@ -20,7 +20,8 @@ function renderizarTablero() {
 
     var dim = hexDimensiones();
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    partida.hexes.forEach(function(h) {
+    var fantasmas = (seleccionHex && seleccionHex.fantasmas) ? Object.keys(seleccionHex.fantasmas).map(function(k) { return seleccionHex.fantasmas[k]; }) : [];
+    partida.hexes.concat(fantasmas).forEach(function(h) {
         var c = hexAPixel(h.q, h.r);
         minX = Math.min(minX, c.x - dim.w / 2); maxX = Math.max(maxX, c.x + dim.w / 2);
         minY = Math.min(minY, c.y - dim.h / 2); maxY = Math.max(maxY, c.y + dim.h / 2);
@@ -131,6 +132,34 @@ function renderizarTablero() {
             abrirZoomHex(h.id);
         });
         svg.appendChild(g);
+    });
+
+    // Potenciadores abandonados en la mazmorra
+    var abandonadosPorHex = {};
+    partida.descartePot.forEach(function(n) {
+        var ub = partida.potUbic ? partida.potUbic[n] : null;
+        if (ub) abandonadosPorHex[ub] = (abandonadosPorHex[ub] || 0) + 1;
+    });
+    partida.hexes.forEach(function(h) {
+        var cnt = abandonadosPorHex[h.id];
+        if (!cnt) return;
+        var c = hexAPixel(h.q, h.r);
+        var mk = svgEl('rect', {
+            'class': 'pot-abandonado', x: c.x + HEX_SIZE * 0.3, y: c.y - HEX_SIZE * 0.62,
+            width: HEX_SIZE * 0.22, height: HEX_SIZE * 0.22, transform: 'rotate(45 ' + (c.x + HEX_SIZE * 0.41) + ' ' + (c.y - HEX_SIZE * 0.51) + ')'
+        });
+        var tt = svgEl('title', {});
+        tt.textContent = cnt + ' Potenciador(es) abandonado(s)';
+        mk.appendChild(tt);
+        svg.appendChild(mk);
+    });
+
+    // Ubicaciones posibles al recolocar una habitacion
+    fantasmas.forEach(function(f) {
+        var c = hexAPixel(f.q, f.r);
+        var poly = svgEl('polygon', { 'class': 'hex-fantasma', points: hexPuntos(c.x, c.y) });
+        poly.addEventListener('click', function() { if (seleccionHex) seleccionHex.cb(f.id); });
+        svg.appendChild(poly);
     });
 
     cont.appendChild(svg);

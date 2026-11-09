@@ -170,7 +170,7 @@ function claveCombate() {
     var c = partida.combate;
     if (!c) return null;
     var j = partida.jugadores[myId];
-    return c.hexId + '|' + (c.nivelMod || 0) + '|' + (j ? (j.manoPot || []).join(',') + '|' + (j.manoBotin || []).length + '|' + getVida(j) : '');
+    return c.hexId + '|' + (c.nivelMod || 0) + (c.ventaja ? 'V' : '') + (c.desventaja ? 'D' : '') + '|' + (j ? (j.manoPot || []).join(',') + '|' + (j.manoBotin || []).length + '|' + getVida(j) : '');
 }
 
 // Modal del duelo contra otro jugador
@@ -279,6 +279,13 @@ function abrirCombate() {
         }
     }
 
+    if (c.ventaja || c.desventaja) {
+        var vd = document.createElement('div');
+        vd.className = 'bono-dado' + (c.desventaja ? ' negativo' : '');
+        vd.innerHTML = '<b></b>';
+        vd.querySelector('b').textContent = c.ventaja ? 'Ventaja: tira el dado dos veces y usa el mas alto' : 'Desventaja: tira el dado dos veces y usa el mas bajo';
+        content.appendChild(vd);
+    }
     var fila = document.createElement('div');
     fila.className = 'row-btns';
     fila.style.width = '100%';
@@ -358,18 +365,30 @@ function abrirZoomCarta(tipo, n, mia) {
     }
     if (mia && tipo === 'botin') {
         var bU = document.createElement('button');
-        bU.className = 'btn-choose';
-        bU.textContent = 'Usar';
+        var razonB = botinDisponible(n);
+        bU.className = 'btn-choose' + (razonB ? ' btn-bloqueado' : '');
+        bU.textContent = 'Activar';
+        bU.disabled = !!razonB;
+        if (razonB) bU.title = razonB;
         bU.addEventListener('click', function() { usarBotin(n); });
         content.appendChild(bU);
+        if (razonB) {
+            var rz = document.createElement('div');
+            rz.className = 'bono-fuentes';
+            rz.textContent = razonB;
+            content.appendChild(rz);
+        }
     }
     if (mia && tipo === 'potenciador') {
         var jm = partida.jugadores[myId];
         var est = jm ? estadoPot(jm, n) : 'activo';
         var bP = document.createElement('button');
         if (est === 'usable') {
-            bP.className = 'btn-choose';
+            var razonP = potDisponible(n);
+            bP.className = 'btn-choose' + (razonP ? ' btn-bloqueado' : '');
             bP.textContent = 'Activar';
+            bP.disabled = !!razonP;
+            if (razonP) bP.title = razonP;
             bP.addEventListener('click', function() { usarPot(n); });
         } else {
             bP.className = 'btn-choose btn-pressed';
@@ -482,11 +501,11 @@ function abrirReglas() {
         content.appendChild(fila);
     });
 
-    if (soyAnfitrionOLocal() && partida.iniciada) {
+    if (partida.iniciada) {
         var restantes = partida.mazos.reglas.length;
         var btn = document.createElement('button');
         btn.className = 'btn-choose';
-        btn.textContent = 'Sacar regla (quedan ' + restantes + ')';
+        btn.textContent = 'Activar una regla al azar (quedan ' + restantes + ')';
         btn.disabled = restantes === 0;
         btn.addEventListener('click', sacarRegla);
         content.appendChild(btn);

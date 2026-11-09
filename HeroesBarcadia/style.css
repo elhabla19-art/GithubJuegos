@@ -1007,3 +1007,17 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 
 /* --- Retar a duelo --- */
 .hex-hit.duelo { stroke: #c03bff; stroke-width: 3; stroke-dasharray: 3 3; fill: rgba(192, 59, 255, 0.20); }
+
+/* --- Botones bloqueados (no se pueden activar todavia) --- */
+.btn-bloqueado, .btn-bloqueado:disabled {
+    background: #3a3a4a !important; color: #888 !important; opacity: 0.7 !important;
+    cursor: not-allowed !important; box-shadow: none;
+}
+
+/* --- Dado del Caos --- */
+.caos-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; margin: 8px 0; }
+.caos-num { padding: 10px 0 !important; margin: 0 !important; font-weight: bold; }
+.hex-fantasma { fill: rgba(62, 198, 255, 0.12); stroke: #3ec6ff; stroke-width: 2.5; stroke-dasharray: 5 4; cursor: pointer; }
+.hex-fantasma:hover { fill: rgba(62, 198, 255, 0.35); }
+.pot-abandonado { fill: #3ec6ff; stroke: #ffffff; stroke-width: 1; pointer-events: none; }
+.pc-estado-tag { background: #8a3fc7; color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: bold; margin-left: 6px; white-space: nowrap; }

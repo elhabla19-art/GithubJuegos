@@ -48,6 +48,9 @@ function renderLeaderboard() {
         if (isHost) badges += ' <span class="pc-host-tag">Anfitrion</span>';
         if (offline) badges += ' <span class="pc-offline-tag">Desconectado</span>';
         if (pid === turnoId) badges += ' <span class="pc-turno-tag">Turno</span>';
+        if (j && j.goblin) badges += ' <span class="pc-estado-tag">Goblin</span>';
+        if (j && j.inmune) badges += ' <span class="pc-estado-tag">Inmune</span>';
+        if (j && j.sinPot) badges += ' <span class="pc-estado-tag">Sin Potenciadores</span>';
 
         var rightHtml = '';
         if (isHost && offline && !isMe) {

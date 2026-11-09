@@ -186,7 +186,17 @@ function hexRevelado(hex) {
 
 // Fija la posicion de un jugador y recuerda el ultimo hexagono libre (completado)
 // que ocupo, al que vuelve si se retira de un combate.
+function salirDeHex(j, nuevoId) {
+    var viejo = buscarHex(j.posicion);
+    // Botin 26: al salir de la habitacion donde se entro sin pelear, se vuelve a voltear boca abajo
+    if (viejo && viejo.ocultarAlSalir && viejo.id !== nuevoId) {
+        viejo.desbloqueado = false;
+        viejo.despejado = false;
+        viejo.ocultarAlSalir = false;
+    }
+}
 function fijarPosicion(j, hexIdNuevo) {
+    salirDeHex(j, hexIdNuevo);
     j.posicion = hexIdNuevo;
     var h = buscarHex(hexIdNuevo);
     if (h && hexLibre(h)) j.ultimoLibre = hexIdNuevo;
