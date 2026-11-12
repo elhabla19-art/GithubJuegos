@@ -94,6 +94,17 @@ function abrirZoomHex(id) {
                 entrarHex(hex.id); // revela al enemigo y abre el combate
             });
             content.appendChild(btnE);
+        } else if (op.entrarVia && op.entrarVia[hex.id]) {
+            var via = op.entrarVia[hex.id];
+            var btnV = document.createElement('button');
+            btnV.className = 'btn-choose';
+            btnV.textContent = 'Entrar' + (via.rival ? ' (retando antes a ' + nom(via.rival) + (via.trampa ? ', tras la trampa' : '') + ')'
+                : (via.trampa ? ' (resolviendo antes la trampa)' : ' (moviendote antes)'));
+            btnV.addEventListener('click', function() {
+                cerrarZoom();
+                entrarHex(hex.id);   // encadena: trampa, reto, movimiento y luego abre el hexagono
+            });
+            content.appendChild(btnV);
         }
     }
     // Potenciador 5 (pasivo): al elegir un hexagono oculto aparece "Potenciador" junto a Entrar

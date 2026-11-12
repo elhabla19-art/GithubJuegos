@@ -14,6 +14,8 @@ var HEX_ESCALA_IMG = 1.0;
 var HEX_SIZE = 50; // radio del hexagono en unidades del SVG
 
 var TOTAL_HEX_CALABOZO = 35;
+// Distancia maxima al portal central para los pasillos (se amplia solo si hace falta)
+var RADIO_MAX_CALABOZO = 7;
 // Contenido del calabozo: 15 monstruos + 9 recompensas + 1 portal + 9 jefes + 1 guardian = 35
 var CANT_MONSTRUOS_TABLERO = 15;
 var CANT_RECOMPENSAS_TABLERO = 9;
@@ -121,14 +123,15 @@ function generarTablero(ordenIds) {
         hexes.push({ id: hexId(c.q, c.r), q: c.q, r: c.r, tipo: 'inicio', desbloqueado: true, despejado: true, duenoId: ordenIds[s] });
     }
 
-    // Celdas del calabozo: anillo 1 libre y luego anillos completos (2, 3...);
-    // el ultimo anillo se rellena al azar hasta llegar a TOTAL_HEX_CALABOZO.
-    var celdas = anillo1.filter(function(c) { return !ocupados[hexId(c.q, c.r)]; });
-    for (var k = 2; celdas.length < TOTAL_HEX_CALABOZO; k++) {
-        var anillo = hexAnillo(k);
-        var falta = TOTAL_HEX_CALABOZO - celdas.length;
-        celdas = celdas.concat(anillo.length <= falta ? anillo : mezclar(anillo).slice(0, falta));
+    // Celdas del calabozo: pasillos que salen del portal y de los inicios, se ramifican
+    // y terminan en salas pequenas (en vez de un bloque compacto alrededor del portal).
+    var nucleo = {};
+    nucleo[hexId(0, 0)] = { q: 0, r: 0 };
+    for (var s2 = 0; s2 < slots.length; s2++) {
+        var cn = anillo1[slots[s2]];
+        nucleo[hexId(cn.q, cn.r)] = { q: cn.q, r: cn.r };
     }
+    var celdas = generarCeldasCalabozo(nucleo, TOTAL_HEX_CALABOZO);
 
     var contenidos = generarContenidos();
     for (var m = 0; m < celdas.length; m++) {
@@ -139,6 +142,82 @@ function generarTablero(ordenIds) {
         });
     }
     return hexes;
+}
+
+// Crece el calabozo como una red de pasillos. Cada pasillo parte de un hexagono ya
+// existente (el nucleo o la punta de otro pasillo), avanza en linea con giros ocasionales
+// y a veces termina en una sala de 1-2 hexagonos. Una celda nueva solo se acepta si
+// toca pocas celdas ya ocupadas (asi quedan pasillos y no un bloque); si no se logra
+// completar, se relaja ese limite poco a poco. Todo hexagono queda conectado al nucleo.
+function generarCeldasCalabozo(nucleo, total) {
+    var ocupadas = {};
+    var base = [];
+    for (var id in nucleo) { ocupadas[id] = true; base.push(nucleo[id]); }
+    var celdas = [], puntas = [];
+
+    function contarVecinos(q, r) {
+        var n = 0;
+        for (var d = 0; d < 6; d++) { if (ocupadas[hexId(q + HEX_DIRS[d][0], r + HEX_DIRS[d][1])]) n++; }
+        return n;
+    }
+    function dist0(q, r) { return (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2; }
+    function libre(q, r, maxVec) { return !ocupadas[hexId(q, r)] && dist0(q, r) <= radioMax && contarVecinos(q, r) <= maxVec; }
+    function agregar(q, r) { ocupadas[hexId(q, r)] = true; celdas.push({ q: q, r: r }); }
+    function elegir(lista) { return lista[Math.floor(Math.random() * lista.length)]; }
+
+    var maxVec = 2, radioMax = RADIO_MAX_CALABOZO, fallos = 0, guardia = 0, fase = 0;
+    var semillas = mezclar(base);
+    while (celdas.length < total && guardia++ < 20000) {
+        var origen;
+        if (fase < semillas.length && fase < 4) {
+            origen = semillas[fase++];            // los primeros pasillos salen del nucleo
+        } else {
+            var t = Math.random();
+            if (t < 0.6 && puntas.length) origen = elegir(puntas);          // seguir una rama
+            else if (t < 0.85 && celdas.length) origen = elegir(celdas);    // ramificar desde un pasillo
+            else origen = elegir(base);
+        }
+        var dir = Math.floor(Math.random() * 6);
+        var largo = 2 + Math.floor(Math.random() * 4);
+        var q = origen.q, r = origen.r, anadidas = 0;
+        for (var i = 0; i < largo && celdas.length < total; i++) {
+            var nq = q + HEX_DIRS[dir][0], nr = r + HEX_DIRS[dir][1];
+            if (!libre(nq, nr, maxVec)) break;
+            agregar(nq, nr);
+            q = nq; r = nr; anadidas++;
+            if (Math.random() < 0.25) dir = (dir + (Math.random() < 0.5 ? 1 : 5)) % 6;   // giro
+        }
+        if (anadidas > 0) {
+            fallos = 0;
+            puntas.push({ q: q, r: r });
+            if (Math.random() < 0.35 && celdas.length < total) {   // sala al final del pasillo
+                var extra = 1 + Math.floor(Math.random() * 2);
+                var orden = mezclar([0, 1, 2, 3, 4, 5]);
+                for (var k = 0; k < orden.length && extra > 0 && celdas.length < total; k++) {
+                    var sq = q + HEX_DIRS[orden[k]][0], sr = r + HEX_DIRS[orden[k]][1];
+                    if (libre(sq, sr, 3)) { agregar(sq, sr); extra--; }
+                }
+            }
+        } else if (++fallos > 150) {
+            // primero se permite tocar mas celdas, y despues se amplia un poco el radio
+            if (maxVec < 3) maxVec++; else { radioMax++; if (radioMax % 2 === 0 && maxVec < 5) maxVec++; }
+            fallos = 0;
+        }
+    }
+    // Seguro: si por algo faltaran celdas, se completan junto a las existentes
+    while (celdas.length < total) {
+        var todas = base.concat(celdas), puesto = false;
+        var barajadas = mezclar(todas);
+        for (var a = 0; a < barajadas.length && !puesto; a++) {
+            var dd = mezclar([0, 1, 2, 3, 4, 5]);
+            for (var b = 0; b < 6; b++) {
+                var xq = barajadas[a].q + HEX_DIRS[dd[b]][0], xr = barajadas[a].r + HEX_DIRS[dd[b]][1];
+                if (!ocupadas[hexId(xq, xr)]) { agregar(xq, xr); puesto = true; break; }
+            }
+        }
+        if (!puesto) break;
+    }
+    return celdas;
 }
 
 // Sortea que hay en cada hexagono del calabozo (en orden aleatorio)
@@ -223,7 +302,7 @@ function maxPasosTurno() {
 }
 
 function calcularOpciones(pid) {
-    var res = { mover: {}, entrar: {}, previo: {}, rival: {} };
+    var res = { mover: {}, entrar: {}, previo: {}, rival: {}, entrarVia: {} };
     var j = partida.jugadores[pid];
     if (!j || !partida.iniciada || partida.combate || partida.ganador) return res;
     var origen = buscarHex(j.posicion);
@@ -238,8 +317,8 @@ function calcularOpciones(pid) {
     // queden. Un hexagono ocupado solo se puede alcanzar retando a su ocupante, y uno con
     // trampa solo se puede elegir como destino; ninguno de los dos se atraviesa.
     var restantes = maxPasosTurno() - (partida.pasos || 0);
+    var dist = {};
     if (restantes > 0) {
-        var dist = {};
         dist[origen.id] = 0;
         var cola = [origen];
         while (cola.length) {
@@ -280,6 +359,22 @@ function calcularOpciones(pid) {
             if (v.tipo !== 'calabozo' || v.despejado || ocupante[v.id]) return;
             res.entrar[v.id] = true;
         });
+    }
+    // Entrar con ruta: un hexagono sin completar que NO esta junto a ti, pero si junto a un hexagono
+    // al que puedes llegar (moviendote o retando). Se resuelve en orden: trampa, reto, y luego se abre.
+    if (!partida.movido && restantes > 0) {
+        for (var mid in dist) {
+            if (mid === origen.id) continue;
+            var M = buscarHex(mid);
+            var obst = (ocupante[mid] ? 1 : 0) + ((M.trampas || 0) > 0 ? 1 : 0);
+            vecinosDe(M).forEach(function(T) {
+                if (T.tipo !== 'calabozo' || T.despejado || ocupante[T.id] || res.entrar[T.id]) return;
+                var previa = res.entrarVia[T.id];
+                if (!previa || obst < previa.obst || (obst === previa.obst && dist[mid] < previa.costo)) {
+                    res.entrarVia[T.id] = { via: mid, costo: dist[mid], obst: obst, rival: ocupante[mid] || null, trampa: (M.trampas || 0) > 0 };
+                }
+            });
+        }
     }
     return res;
 }

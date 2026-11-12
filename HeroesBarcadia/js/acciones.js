@@ -895,7 +895,7 @@ function abrirTrampa(hex, costo, previoId, retarPid) {
             else hacerMovimiento(hex.id, costo, 'desactivar', previoId);
         });
         elBoton(c, 'Retroceder', 'btn-outline', function() { ocultarModal(); hacerMovimiento(hex.id, costo, 'retroceder', previoId); });
-        elBoton(c, 'Cancelar', 'btn-secondary', cerrarOVolver);
+        elBoton(c, 'Cancelar', 'btn-secondary', function() { entradaPendiente = null; cerrarOVolver(); });
     });
 }
 window.abrirTrampa = abrirTrampa;

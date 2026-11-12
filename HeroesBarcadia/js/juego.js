@@ -324,14 +324,36 @@ function hacerMovimiento(hexIdDestino, costo, modo, previoId) {
     broadcastMover(hexIdDestino, costo, modo, previoId, partida.version);
     actualizarUI();
     saveSession();
+    if (modo === 'retroceder') entradaPendiente = null;   // la trampa te frena: no se abre el hexagono
+    else continuarEntradaPendiente();
 }
 window.hacerMovimiento = hacerMovimiento;
+
+// Hexagono al que quiero entrar despues de resolver el camino (trampa / reto / movimiento)
+var entradaPendiente = null;
+
+function continuarEntradaPendiente() {
+    var T = entradaPendiente;
+    if (!T) return;
+    entradaPendiente = null;
+    if (!partida.iniciada || partida.ganador || !esMiTurno() || partida.combate || partida.movido) return;
+    if (calcularOpciones(myId).entrar[T]) entrarHex(T);
+}
+window.continuarEntradaPendiente = continuarEntradaPendiente;
 
 function entrarHex(hexIdDestino) {
     if (!validarMiTurno()) return;
     if (partida.movido) { showNotice('Ya entraste a un hexagono en este turno.'); return; }
-    if (!calcularOpciones(myId).entrar[hexIdDestino]) {
-        showNotice('Solo puedes entrar a un hexagono sin completar que sea adyacente a donde estas (o al hexagono donde ya estas).');
+    var op = calcularOpciones(myId);
+    if (!op.entrar[hexIdDestino]) {
+        var via = op.entrarVia && op.entrarVia[hexIdDestino];
+        if (via) {
+            // Primero el camino (trampa, reto o movimiento) y despues se abre el hexagono
+            entradaPendiente = hexIdDestino;
+            if (via.rival) retarJugador(via.via); else moverJugador(via.via);
+            return;
+        }
+        showNotice('Solo puedes entrar a un hexagono sin completar que sea adyacente a donde estas, o al que llegues moviendote o retando dentro de tus pasos.');
         return;
     }
     var r = aplicarEntrar(myId, hexIdDestino, siguienteVersion());
@@ -362,6 +384,7 @@ function aplicarPasarTurno(version) {
 }
 
 function pasarTurno() {
+    entradaPendiente = null;
     if (!partida.iniciada) return;
     if (partida.ganador) { showNotice('La partida ya termino.'); return; }
     var c = partida.combate;
@@ -488,6 +511,7 @@ function atacar() {
         actualizarUI();
         saveSession();
         if (rd) showNotice('Ganaste el duelo: intercambias lugar con ' + nom(rd.perdedor) + ', que recibe 10 de dano.', 'Duelo ganado');
+        continuarEntradaPendiente();   // si venia a abrir un hexagono, ahora se abre
         return;
     }
     var hex = buscarHex(c.hexId);
@@ -508,6 +532,7 @@ function atacar() {
 window.atacar = atacar;
 
 function retirarse() {
+    entradaPendiente = null;   // perder o retirarse cancela la entrada que estaba en curso
     var c = partida.combate;
     if (!c || c.pid !== myId) return;
     var r = aplicarRetirada(siguienteVersion());

@@ -120,6 +120,13 @@
                 <span id="seleccionTexto"></span>
                 <button class="modal-btn btn-outline" onclick="cancelarSeleccionHex()">Cancelar</button>
             </div>
+            <div id="mapaControles" class="mapa-controles" style="display: none;">
+                <button class="modal-btn btn-outline" onclick="mapaZoomMenos()" title="Alejar">&minus;</button>
+                <button class="modal-btn btn-outline" onclick="mapaZoomMas()" title="Acercar">+</button>
+                <button class="modal-btn btn-outline" onclick="mapaAjustar()">Ajustar</button>
+                <button class="modal-btn btn-outline" onclick="centrarEnMiHeroe()">Centrar en mi heroe</button>
+                <span class="mapa-ayuda">Arrastra el mapa para moverte por el</span>
+            </div>
             <div id="tablero" class="tablero"></div>
         </div>
 

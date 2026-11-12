@@ -7,16 +7,27 @@ function svgEl(name, attrs) {
     return el;
 }
 
-// ===== TABLERO =====
+// ===== TABLERO (con desplazamiento y zoom) =====
+var mapaZoom = null;          // pixeles por unidad del SVG; null = calcular al abrir
+var mapaGeom = null;          // { minX, minY, zoom } para convertir posiciones a pixeles
+var mapaUltimoTurno = undefined;
+var mapaArrastro = false;     // true justo despues de arrastrar el mapa (evita clics accidentales)
+var MAPA_ZOOM_MIN = 0.3, MAPA_ZOOM_MAX = 1.8;
+
 function renderizarTablero() {
     var cont = document.getElementById('tablero');
     if (!cont) return;
+    var scrollX = cont.scrollLeft, scrollY = cont.scrollTop;
     cont.innerHTML = '';
+    var controles = document.getElementById('mapaControles');
 
     if (!partida.iniciada || !partida.hexes.length) {
         cont.innerHTML = '<div class="tablero-vacio">Presiona "Heroes" para comenzar la partida</div>';
+        mapaZoom = null; mapaGeom = null; mapaUltimoTurno = undefined;
+        if (controles) controles.style.display = 'none';
         return;
     }
+    if (controles) controles.style.display = 'flex';
 
     var dim = hexDimensiones();
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -26,11 +37,18 @@ function renderizarTablero() {
         minX = Math.min(minX, c.x - dim.w / 2); maxX = Math.max(maxX, c.x + dim.w / 2);
         minY = Math.min(minY, c.y - dim.h / 2); maxY = Math.max(maxY, c.y + dim.h / 2);
     });
-    var pad = 6;
+    var pad = 24;
+    var vbW = maxX - minX + pad * 2, vbH = maxY - minY + pad * 2;
+    if (mapaZoom === null) {   // primera vez: que quepa a lo ancho, sin hacerse demasiado pequeno
+        mapaZoom = Math.max(0.45, Math.min(0.9, (cont.clientWidth || 600) / vbW));
+    }
     var svg = svgEl('svg', {
         'class': 'tablero-svg',
-        viewBox: (minX - pad) + ' ' + (minY - pad) + ' ' + (maxX - minX + pad * 2) + ' ' + (maxY - minY + pad * 2)
+        viewBox: (minX - pad) + ' ' + (minY - pad) + ' ' + vbW + ' ' + vbH
     });
+    svg.style.width = Math.round(vbW * mapaZoom) + 'px';
+    svg.style.height = Math.round(vbH * mapaZoom) + 'px';
+    mapaGeom = { minX: minX - pad, minY: minY - pad, zoom: mapaZoom };
 
     var defs = svgEl('defs', {});
     var R = HEX_SIZE * 0.3;
@@ -97,6 +115,7 @@ function renderizarTablero() {
         else if (opciones.mover[h.id] === 1) clases += ' alc1';
         else if (opciones.mover[h.id] === 2) clases += ' alc2';
         else if (opciones.entrar[h.id]) clases += ' entrar';
+        else if (opciones.entrarVia && opciones.entrarVia[h.id]) clases += ' entrar-via';
         if (h.id === miPos) clases += ' actual';
         if (seleccionHex && seleccionHex.ids[h.id]) clases += ' sel';
         g.appendChild(svgEl('polygon', { 'class': clases, points: hexPuntos(c.x, c.y) }));
@@ -125,6 +144,7 @@ function renderizarTablero() {
         });
 
         g.addEventListener('click', function() {
+            if (mapaArrastro) return;
             if (seleccionHex) {
                 if (seleccionHex.ids[h.id]) seleccionHex.cb(h.id);
                 return;
@@ -158,12 +178,78 @@ function renderizarTablero() {
     fantasmas.forEach(function(f) {
         var c = hexAPixel(f.q, f.r);
         var poly = svgEl('polygon', { 'class': 'hex-fantasma', points: hexPuntos(c.x, c.y) });
-        poly.addEventListener('click', function() { if (seleccionHex) seleccionHex.cb(f.id); });
+        poly.addEventListener('click', function() { if (!mapaArrastro && seleccionHex) seleccionHex.cb(f.id); });
         svg.appendChild(poly);
     });
 
     cont.appendChild(svg);
+
+    // Mantener donde estaba el desplazamiento; centrar en mi heroe al empezar y al llegar mi turno
+    var turnoAhora = turnoActualId();
+    var centrar = (mapaUltimoTurno === undefined) || (turnoAhora !== mapaUltimoTurno && turnoAhora === myId);
+    mapaUltimoTurno = turnoAhora;
+    if (centrar) centrarEnMiHeroe();
+    else { cont.scrollLeft = scrollX; cont.scrollTop = scrollY; }
 }
+
+// Lleva la vista del mapa hasta mi heroe (o al portal si no participo)
+function centrarEnMiHeroe() {
+    var cont = document.getElementById('tablero');
+    if (!cont || !mapaGeom) return;
+    var j = partida.jugadores[myId];
+    var h = (j && buscarHex(j.posicion)) || buscarHex(hexId(0, 0));
+    if (!h) return;
+    var c = hexAPixel(h.q, h.r);
+    cont.scrollLeft = (c.x - mapaGeom.minX) * mapaGeom.zoom - cont.clientWidth / 2;
+    cont.scrollTop = (c.y - mapaGeom.minY) * mapaGeom.zoom - cont.clientHeight / 2;
+}
+
+// Acercar / alejar manteniendo el centro de la vista
+function cambiarZoomMapa(factor) {
+    var cont = document.getElementById('tablero');
+    if (!cont || mapaZoom === null) return;
+    var antes = mapaZoom;
+    var cx = (cont.scrollLeft + cont.clientWidth / 2) / antes;
+    var cy = (cont.scrollTop + cont.clientHeight / 2) / antes;
+    mapaZoom = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, antes * factor));
+    renderizarTablero();
+    cont.scrollLeft = cx * mapaZoom - cont.clientWidth / 2;
+    cont.scrollTop = cy * mapaZoom - cont.clientHeight / 2;
+}
+function mapaZoomMas() { cambiarZoomMapa(1.25); }
+function mapaZoomMenos() { cambiarZoomMapa(0.8); }
+function mapaAjustar() {   // vuelve al zoom inicial y vuelve a centrar
+    mapaZoom = null;
+    mapaUltimoTurno = undefined;
+    renderizarTablero();
+}
+
+// Arrastrar el mapa con el mouse (en pantallas tactiles se desplaza con el dedo)
+document.addEventListener('DOMContentLoaded', function() {
+    var cont = document.getElementById('tablero');
+    if (!cont) return;
+    cont.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        var x0 = e.clientX, y0 = e.clientY, sl = cont.scrollLeft, st = cont.scrollTop, movido = false;
+        function mover(ev) {
+            var dx = ev.clientX - x0, dy = ev.clientY - y0;
+            if (!movido && Math.abs(dx) + Math.abs(dy) > 6) { movido = true; cont.classList.add('arrastrando'); }
+            if (movido) { cont.scrollLeft = sl - dx; cont.scrollTop = st - dy; }
+        }
+        function soltar() {
+            document.removeEventListener('mousemove', mover);
+            document.removeEventListener('mouseup', soltar);
+            cont.classList.remove('arrastrando');
+            if (movido) { mapaArrastro = true; setTimeout(function() { mapaArrastro = false; }, 60); }
+        }
+        document.addEventListener('mousemove', mover);
+        document.addEventListener('mouseup', soltar);
+    });
+});
+window.centrarEnMiHeroe = centrarEnMiHeroe;
+window.mapaZoomMas = mapaZoomMas;
+window.mapaZoomMenos = mapaZoomMenos;
+window.mapaAjustar = mapaAjustar;
 
 // ===== MI HEROE Y TURNO =====
 function renderizarMiHeroe() {
