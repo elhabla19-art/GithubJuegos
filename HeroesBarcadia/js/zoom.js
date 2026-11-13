@@ -1,5 +1,8 @@
 // zoom.js
 // ===== VER UN HEXAGONO O UN HEROE EN GRANDE =====
+// Si un zoom se abrio desde otra ventana (menu Cartas, recompensa, reglas, heroe), "Cerrar" vuelve a ella
+var zoomVolverA = null;
+
 function abrirZoomHex(id) {
     if (combatePendienteMio()) { abrirCombate(); return; }
     var hex = buscarHex(id);
@@ -7,6 +10,7 @@ function abrirZoomHex(id) {
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
+    zoomVolverA = null;
 
     var revelado = hex.tipo !== 'calabozo' || hex.desbloqueado;
     var img = document.createElement('img');
@@ -136,19 +140,57 @@ function abrirZoomHeroe(pid) {
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
-    var img = document.createElement('img');
-    img.src = getImagenHeroe(j.heroe);
-    img.alt = getNombreHeroe(j.heroe);
-    content.appendChild(img);
+    zoomVolverA = null;
+
     var info = document.createElement('div');
     info.className = 'zoom-info';
     var nombre = (playersData[pid] ? playersData[pid].name : '---').replace(/</g, '&lt;');
     info.innerHTML = nombre + ' \u2014 <span>' + getNombreHeroe(j.heroe) + '</span>';
     content.appendChild(info);
+
+    // Vida: 10 cuadros del rojo al verde
+    var vida = getVida(j);
+    var cajaVida = document.createElement('div');
+    cajaVida.className = 'hero-panel';
+    cajaVida.appendChild(crearBarraVida(vida));
+    var num = document.createElement('div');
+    num.className = 'vida-num';
+    num.textContent = vida + ' / ' + VIDA_INICIAL_HEROE;
+    cajaVida.appendChild(num);
+    content.appendChild(cajaVida);
+
+    var img = document.createElement('img');
+    img.src = getImagenHeroe(j.heroe);
+    img.alt = getNombreHeroe(j.heroe);
+    img.style.maxHeight = '38vh';
+    content.appendChild(img);
+
+    // Potenciadores (equipo visible para todos)
+    var et = document.createElement('div');
+    et.className = 'zoom-stats';
+    et.textContent = (j.manoPot || []).length ? 'Potenciadores' : 'Sin Potenciadores';
+    content.appendChild(et);
+    if ((j.manoPot || []).length) {
+        var fila = document.createElement('div');
+        fila.className = 'recompensa-fila';
+        j.manoPot.forEach(function(n) {
+            var im = document.createElement('img');
+            im.src = getImagenPotenciador(n);
+            im.alt = 'Potenciador ' + n;
+            im.style.maxHeight = 'none';
+            if (j.volteados && j.volteados[n]) im.style.opacity = '0.4';
+            im.addEventListener('click', function() {
+                abrirZoomCarta('potenciador', n, false, function() { abrirZoomHeroe(pid); });
+            });
+            fila.appendChild(im);
+        });
+        content.appendChild(fila);
+    }
+
     var btnC = document.createElement('button');
     btnC.className = 'modal-btn btn-secondary';
     btnC.textContent = 'Cerrar';
-    btnC.addEventListener('click', cerrarZoom);
+    btnC.addEventListener('click', cerrarOVolver);
     content.appendChild(btnC);
     modal.style.display = 'flex';
 }
@@ -190,6 +232,7 @@ function abrirCombateDuelo(c) {
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
+    zoomVolverA = null;
     var img = document.createElement('img');
     img.src = rj ? getImagenHeroe(rj.heroe) : '';
     img.alt = 'Rival';
@@ -251,6 +294,7 @@ function abrirCombate() {
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
+    zoomVolverA = null;
 
     var img = document.createElement('img');
     img.src = ct.imagen;
@@ -353,12 +397,13 @@ function sincronizarModalCombate() {
 }
 
 // ===== VER UNA CARTA (Botin, Potenciador o Regla) =====
-function abrirZoomCarta(tipo, n, mia) {
+function abrirZoomCarta(tipo, n, mia, volver) {
     if (combatePendienteMio() && !mia) { abrirCombate(); return; }
     var info = getInfoCarta(tipo, n);
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
+    zoomVolverA = volver || null;
     var img = document.createElement('img');
     img.src = info.imagen;
     img.alt = info.titulo;
@@ -416,7 +461,7 @@ function abrirZoomCarta(tipo, n, mia) {
     var btnC = document.createElement('button');
     btnC.className = 'modal-btn btn-secondary';
     btnC.textContent = 'Cerrar';
-    btnC.addEventListener('click', mia ? cerrarOVolver : cerrarZoom);
+    btnC.addEventListener('click', volver ? volver : cerrarOVolver);
     content.appendChild(btnC);
     modal.style.display = 'flex';
 }
@@ -426,6 +471,7 @@ function abrirRecompensa(r) {
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
+    zoomVolverA = null;
     var t = document.createElement('div');
     t.className = 'zoom-info';
     t.innerHTML = '<span>' + (r.titulo || 'Victoria').replace(/</g, '&lt;') + '</span>';
@@ -461,14 +507,14 @@ function abrirRecompensa(r) {
             var info = getInfoCarta(c[0], c[1]);
             im.src = info.imagen;
             im.alt = info.titulo;
-            im.addEventListener('click', function() { abrirZoomCarta(c[0], c[1]); });
+            im.addEventListener('click', function() { abrirZoomCarta(c[0], c[1], false, function() { abrirRecompensa(r); }); });
             fila.appendChild(im);
         });
         content.appendChild(fila);
     }
     var btn = document.createElement('button');
     btn.className = 'modal-btn btn-primary';
-    btn.textContent = 'Continuar';
+    btn.textContent = descarteForzadoPendiente() ? 'Continuar (elegir que descartar)' : 'Continuar';
     btn.addEventListener('click', function() { cerrarZoom(); sincronizarDescarte(); });
     content.appendChild(btn);
     modal.style.display = 'flex';
@@ -480,6 +526,7 @@ function abrirReglas() {
     var modal = document.getElementById('zoomModal');
     var content = document.getElementById('zoomContent');
     content.innerHTML = '';
+    zoomVolverA = null;
     var t = document.createElement('div');
     t.className = 'zoom-info';
     t.innerHTML = '<span>Reglas activas</span>';
@@ -498,7 +545,7 @@ function abrirReglas() {
         var im = document.createElement('img');
         im.src = info.imagen;
         im.alt = info.titulo;
-        im.addEventListener('click', function() { abrirZoomCarta('regla', n); });
+        im.addEventListener('click', function() { abrirZoomCarta('regla', n, false, abrirReglas); });
         fila.appendChild(im);
         var tx = document.createElement('div');
         tx.className = 'regla-texto';
@@ -529,6 +576,18 @@ function abrirReglas() {
     modal.style.display = 'flex';
 }
 
+// Cerrar al tocar fuera: si el zoom venia de otra ventana, vuelve a ella; si no, se cierra
+// (salvo que haya algo obligatorio pendiente, que se vuelve a mostrar).
+function cerrarZoomOAtras() {
+    if (zoomVolverA) {
+        var f = zoomVolverA;
+        zoomVolverA = null;
+        f();
+    } else {
+        cerrarOVolver();
+    }
+}
+
 function cerrarZoom() {
     if (combatePendienteMio()) return; // no se puede cerrar sin elegir
     if (typeof descarteForzadoPendiente === 'function' && descarteForzadoPendiente()) return;
@@ -540,12 +599,13 @@ function cerrarZoom() {
 document.addEventListener('DOMContentLoaded', function() {
     var modal = document.getElementById('zoomModal');
     modal.addEventListener('click', function(e) {
-        if (e.target === modal) cerrarZoom();
+        if (e.target === modal) cerrarZoomOAtras();
     });
 });
 window.abrirZoomHex = abrirZoomHex;
 window.abrirZoomHeroe = abrirZoomHeroe;
 window.cerrarZoom = cerrarZoom;
+window.cerrarZoomOAtras = cerrarZoomOAtras;
 
 window.abrirCombate = abrirCombate;
 window.sincronizarModalCombate = sincronizarModalCombate;

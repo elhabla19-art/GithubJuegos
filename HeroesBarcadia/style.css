@@ -1042,3 +1042,15 @@ h1 { font-size: 2rem; font-weight: 800; letter-spacing: 2px; text-transform: upp
 
 /* --- Entrar pasando antes por trampa / reto / movimiento --- */
 .hex-hit.entrar-via { stroke: #e0483e; stroke-width: 2.5; stroke-dasharray: 2 5; fill: rgba(224, 72, 62, 0.10); }
+
+/* ============================================ */
+/* ===== VENTANAS: botones dentro de su espacio ===== */
+/* ============================================ */
+.zoom-box { max-height: 94vh; overflow-y: auto; box-sizing: border-box; }
+.zoom-content { width: 100%; box-sizing: border-box; }
+.zoom-content button, .zoom-content .modal-btn, .zoom-content .btn-choose {
+    box-sizing: border-box; max-width: 100%; white-space: normal; word-break: break-word;
+}
+.zoom-content .row-btns { display: flex; gap: 8px; width: 100%; box-sizing: border-box; }
+.zoom-content .row-btns .modal-btn { width: auto; flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; margin: 0; }
+.zoom-content .recompensa-fila img { max-width: 30%; height: auto; }

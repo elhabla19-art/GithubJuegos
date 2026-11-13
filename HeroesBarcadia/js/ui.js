@@ -251,6 +251,28 @@ window.mapaZoomMas = mapaZoomMas;
 window.mapaZoomMenos = mapaZoomMenos;
 window.mapaAjustar = mapaAjustar;
 
+// Barra de vida en 10 cuadros (cada uno vale 10 puntos), del rojo al verde
+function crearBarraVida(vida) {
+    var barra = document.createElement('div');
+    barra.className = 'vida-cuadros';
+    barra.title = 'Vida ' + vida + ' / ' + VIDA_INICIAL_HEROE;
+    for (var i = 0; i < 10; i++) {
+        var pct = Math.max(0, Math.min(1, (vida - i * 10) / 10));
+        var q = document.createElement('div');
+        q.className = 'vida-cuadro' + (pct === 0 ? ' vacio' : '');
+        q.style.setProperty('--c', 'hsl(' + Math.round(i * 12) + ', 78%, 46%)');
+        if (pct > 0) {
+            var rel = document.createElement('div');
+            rel.className = 'vida-cuadro-relleno';
+            rel.style.width = (pct * 100) + '%';
+            q.appendChild(rel);
+        }
+        barra.appendChild(q);
+    }
+    return barra;
+}
+window.crearBarraVida = crearBarraVida;
+
 // ===== MI HEROE Y TURNO =====
 function renderizarMiHeroe() {
     var cont = document.getElementById('my-hero-container');
@@ -298,23 +320,7 @@ function renderizarMiHeroe() {
 
     // Vida: 10 cuadros del rojo al verde; los perdidos quedan como silueta punteada
     var vida = getVida(j);
-    var barra = document.createElement('div');
-    barra.className = 'vida-cuadros';
-    barra.title = 'Vida ' + vida + ' / ' + VIDA_INICIAL_HEROE;
-    for (var i = 0; i < 10; i++) {
-        var pct = Math.max(0, Math.min(1, (vida - i * 10) / 10));
-        var q = document.createElement('div');
-        q.className = 'vida-cuadro' + (pct === 0 ? ' vacio' : '');
-        q.style.setProperty('--c', 'hsl(' + Math.round(i * 12) + ', 78%, 46%)');
-        if (pct > 0) {
-            var rel = document.createElement('div');
-            rel.className = 'vida-cuadro-relleno';
-            rel.style.width = (pct * 100) + '%';
-            q.appendChild(rel);
-        }
-        barra.appendChild(q);
-    }
-    cont.appendChild(barra);
+    cont.appendChild(crearBarraVida(vida));
     var num = document.createElement('div');
     num.className = 'vida-num';
     num.textContent = vida + ' / ' + VIDA_INICIAL_HEROE;
@@ -335,7 +341,7 @@ function renderizarMiHeroe() {
 }
 
 // ===== MIS CARTAS (manos de Botin y Potenciadores) y mazos =====
-function pintarMano(cont, mano, tipo) {
+function pintarMano(cont, mano, tipo, volver) {
     if (!cont) return;
     cont.innerHTML = '';
     if (!mano.length) {
@@ -369,7 +375,7 @@ function pintarMano(cont, mano, tipo) {
             ins.textContent = est === 'activo' ? 'ON' : (est === 'usado' ? '\u2713' : (est === 'volteado' ? '\u2715' : '\u25b6'));
             d.appendChild(ins);
         }
-        d.addEventListener('click', function() { abrirZoomCarta(tipo, n, true); });
+        d.addEventListener('click', function() { abrirZoomCarta(tipo, n, true, volver); });
         cont.appendChild(d);
     });
 }

@@ -10,6 +10,7 @@ function abrirContenido(fn) {
     var m = document.getElementById('zoomModal');
     var c = document.getElementById('zoomContent');
     c.innerHTML = '';
+    zoomVolverA = null;
     fn(c);
     m.style.display = 'flex';
 }
@@ -32,8 +33,10 @@ function cerrarOVolver() {
     sincronizarPendiente();
 }
 function finAccionUI() {
+    // El modal de la accion ya se resolvio: se oculta siempre (si queda algo obligatorio,
+    // los sincronizar de abajo lo vuelven a abrir con contenido nuevo).
     if (combatePendienteMio()) abrirCombate();
-    else if (!(modalVisible() && document.querySelector('#zoomContent .descarte-forzado'))) ocultarModal();
+    else ocultarModal();
     sincronizarDescarte();
     sincronizarPendiente();
 }
@@ -838,10 +841,10 @@ function abrirAcciones() {
         elTitulo(c, 'Cartas');
         var h1 = document.createElement('h4'); h1.textContent = 'Cartas Botin (' + j.manoBotin.length + ')'; c.appendChild(h1);
         var m1 = document.createElement('div'); m1.className = 'mano-container'; c.appendChild(m1);
-        pintarMano(m1, j.manoBotin, 'botin');
+        pintarMano(m1, j.manoBotin, 'botin', abrirAcciones);
         var h2 = document.createElement('h4'); h2.textContent = 'Potenciadores (' + j.manoPot.length + '/' + maxPot(j) + ')'; c.appendChild(h2);
         var m2 = document.createElement('div'); m2.className = 'mano-container'; c.appendChild(m2);
-        pintarMano(m2, j.manoPot, 'potenciador');
+        pintarMano(m2, j.manoPot, 'potenciador', abrirAcciones);
         elTexto(c, 'Mazos: Botin ' + partida.mazos.botin.length + ' \u00b7 Potenciadores ' + partida.mazos.potenciadores.length + ' \u00b7 Reglas ' + partida.mazos.reglas.length);
         var hb = crearBotonHabilidad();
         if (hb) c.appendChild(hb);
