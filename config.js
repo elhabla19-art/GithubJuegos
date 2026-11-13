@@ -102,6 +102,13 @@ const Config = {
                 ruta: './HeroesBarcadia/index.html',
                 color: '#f5deb2',
                 topics: ['mqtt', 'dados', 'cartas']
+            },
+            {
+                id: 'FarkleDados',
+                nombre: 'Farklee',
+                ruta: './FarkleDados/index.html',
+                color: '#f5deb2',
+                topics: ['mqtt', 'dados']
             }
         ];
     },
